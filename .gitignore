@@ -1,0 +1,5 @@
+*.ini
+*.bat
+_static/
+build/
+help.txt

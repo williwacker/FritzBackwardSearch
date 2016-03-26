@@ -1,0 +1,8 @@
+[DEFAULT]
+FRITZ_IP_ADDRESS:    192.168.178.1
+FRITZ_TCP_PORT:      49000
+FRITZ_USERNAME:      dslf-config
+NAME_NOT_FOUND_FILE: /var/fritz/nameNotFound.list
+FRITZ_PHONE_BOOK:    Gesammelte_Anrufe
+PASSWORD:            000000
+LOG_FILE:            /var/log/fritz_backward_search.log
