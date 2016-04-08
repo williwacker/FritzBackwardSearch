@@ -1,7 +1,7 @@
 License
 =======
 
-The Fritz-Backward-Search script is released under MIT license.
+The Fritz-Backward-Search scripts are released under MIT license.
 
 The MIT License (MIT)
 

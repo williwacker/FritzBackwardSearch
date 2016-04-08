@@ -1,5 +1,7 @@
 *.ini
 *.bat
 _static/
+__pycache__/
 build/
 help.txt
+fritzCallMon.pid
