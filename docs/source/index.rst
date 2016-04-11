@@ -31,8 +31,8 @@ Contents:
 Contribute
 ----------
 
-- Issue Tracker: `github.com/williwacker/fritz-backward-search/issues <https://github.com/williwacker/FritzBackwardSearch/issues>`_
-- Source Code: `github.com/williwacker/fritz-backward-search.git <https://github.com/williwacker/FritzBackwardSearch.git>`_
+- Issue Tracker: `github.com/williwacker/FritzBackwardSearch/issues <https://github.com/williwacker/FritzBackwardSearch/issues>`_
+- Source Code: `github.com/williwacker/FritzBackwardSearch.git <https://github.com/williwacker/FritzBackwardSearch.git>`_
 
 Support
 -------
