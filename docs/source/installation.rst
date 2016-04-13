@@ -30,11 +30,11 @@ To install the fritzBackwardSearch scripts clone the GitHub repository::
 2. Installing the fritzCallMon as a service
 -------------------------------------------
 
-In order to start the Call monitor during startup you will need to define it as a service::
+In order to start the Call monitor during startup you will need to update the scripts with your 
+installation directory and define it as a service. This will be done by the ``install.sh`` script::
 
-    sudo mv fritzCallMon.sh /etc/init.d/fritzCallMon
-    sudo chmod +x /etc/init.d/fritzCallMon
-    sudo update-rc.d fritzCallMon defaults
+    cd <your installation dir>
+    sudo sh install.sh
 
 3. Installing the Dependencies
 ------------------------------
@@ -86,4 +86,3 @@ An example of a typical ``fritzBackwardSearch.ini`` file is shown here::
 	LOGFILE:               /var/log/fritzBackwardSearch.log
 	STATUS_TO_TERMINAL:    True
 	PROCESS_STOP_FILE:     /var/run/fritzCallMon.pid
-

@@ -1,6 +1,12 @@
 Changelog
 =========
 
+Version 0.2.1
+-------------
+
+Added an installation script that renames the installation directory name
+Added the missing service start script
+
 Version 0.2.0
 -------------
 
