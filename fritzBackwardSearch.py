@@ -15,10 +15,11 @@ Do a backward search with the used number and if a name has been found add the e
 21.03.2016           Added config file
 23.03.2016           Fixed phone book entry names handling for html special characters
 08.04.2016 0.2.0 WK  Added fritzCallMon.py, made fritzBackwardSearch module callable
+27.04.2016 0.2.2 WK  Enhanced search by removing numbers at the end in case someone has dialed more numbers
 
 """
 
-__version__ = '0.2.0'
+__version__ = '0.2.2'
 
 from fritzconnection import FritzConnection
 import urllib3
@@ -81,28 +82,41 @@ class FritzCalls(object):
 		foundlist = {}
 		nameNotFoundFile_out = open(self.notfoundfile,'a')
 		for number in searchlist.keys():
+			origNumber = number
 			# remove pre-dial number
 			if number.startswith("010"):
 				nextZero = number.find('0',3)
-				fullnumber = number[nextZero:]
-			# add the area code for local numbers
-			m = re.search('^[1-9][0-9]+', number)
-			if m: 
-				fullNumber = '{}{}'.format(self.areaCode,number)
+				fullNumber = number[nextZero:]
 			else:
-				fullNumber = number
-			name = self.dastelefonbuch(fullNumber)
-			if name == None:
-				name = self.dasoertliche(fullNumber)
-			if name == None and searchlist[number] != '':
-				name = self.dastelefonbuch(searchlist[number])
-			if name == None and searchlist[number] != '':
-				name = self.dasoertliche(searchlist[number])
-			if name == None:
-				writeLog('{} not found'.format(number))
-				nameNotFoundFile_out.write('{}\n'.format(number))
-			else:
-				foundlist[number] = name
+				# add the area code for local numbers
+				m = re.search('^[1-9][0-9]+', number)
+				if m: 
+					fullNumber = '{}{}'.format(self.areaCode,number)
+				else:
+					fullNumber = number
+			name = None;
+			numberLogged = False
+			numberSaved  = False
+			while (name == None and len(fullNumber) > 6):
+				name = self.dastelefonbuch(fullNumber)
+				if name == None:
+					name = self.dasoertliche(fullNumber)
+				if name == None and searchlist[number] != '':
+					name = self.dastelefonbuch(searchlist[number])
+				if name == None and searchlist[number] != '':
+					name = self.dasoertliche(searchlist[number])
+				if name == None:
+					writeLog('{} not found'.format(fullNumber))
+					nameNotFoundFile_out.write('{}\n'.format(fullNumber))
+					if fullNumber != number and not numberLogged:
+						nameNotFoundFile_out.write('{}\n'.format(number))
+					numberLogged = True
+					fullNumber = fullNumber[:-1]
+				else:
+					foundlist[fullNumber] = name
+					if fullNumber != number and not numberSaved:
+						foundlist[number] = name
+					numberSaved = True
 		nameNotFoundFile_out.close()
 		return foundlist
 		
@@ -270,7 +284,6 @@ class FritzBackwardSearch(object):
 		return parser.parse_args()
 	
 	def runSearch(self,s=''):
-		print('s=',s)
 		if self.prefs['password'] != '':
 			args.password = self.prefs['password']		
 		if args.password == '':
