@@ -299,8 +299,6 @@ class FritzBackwardSearch(object):
 		phonebook = FritzPhonebook(self.connection, name=args.phonebook)
 		calls     = FritzCalls(self.connection, notfoundfile=args.notfoundfile)
 		unknownCallers = calls.get_unknown()
-		print(unknownCallers)
-		exit(0)
 		searchnumber = ''
 		if args.searchnumber:
 			searchnumber = args.searchnumber
