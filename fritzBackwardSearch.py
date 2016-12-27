@@ -16,11 +16,12 @@ Do a backward search with the used number and if a name has been found add the e
 23.03.2016           Fixed phone book entry names handling for html special characters
 08.04.2016 0.2.0 WK  Added fritzCallMon.py, made fritzBackwardSearch module callable
 27.04.2016 0.2.2 WK  Enhanced search by removing numbers at the end in case someone has dialed more numbers
-03.08.2016 0.2.3 WK  Fix duplicate phonebook entries caused by following call of Type 10 
+03.08.2016 0.2.3 WK  Fix duplicate phonebook entries caused by following call of Type 10
+27.12.2016 0.2.4 WK  Improve search by adding zero at the end
 
 """
 
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 
 from fritzconnection import FritzConnection
 import urllib3
@@ -111,7 +112,10 @@ class FritzCalls(object):
 					if fullNumber != number and not numberLogged:
 						nameNotFoundFile_out.write('{}\n'.format(number))
 					numberLogged = True
-					fullNumber = fullNumber[:-1]
+					if fullNumber[-1] == "0":
+						fullNumber = fullNumber[:-2]+"0"
+					else:
+						fullNumber = fullNumber[:-1]+"0"
 				else:
 					foundlist[fullNumber] = name
 					if fullNumber != number and not numberSaved:
