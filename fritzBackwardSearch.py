@@ -18,13 +18,15 @@ Do a backward search with the used number and if a name has been found add the e
 27.04.2016 0.2.2 WK  Enhanced search by removing numbers at the end in case someone has dialed more numbers
 03.08.2016 0.2.3 WK  Fix duplicate phonebook entries caused by following call of Type 10
 27.12.2016 0.2.4 WK  Improve search by adding zero at the end
+25.07.2017 0.2.5 WK  Correct html conversion in dastelefonbuch
 
 """
 
-__version__ = '0.2.4'
+__version__ = '0.2.5'
 
 from fritzconnection import FritzConnection
 import urllib3
+import certifi
 import xmltodict
 import re
 import argparse
@@ -34,22 +36,33 @@ import copy
 import configparser
 import os
 import time
+from html.parser import HTMLParser
 
 args = argparse.Namespace()
 args.logfile = ''
 
+class MyHTMLParser(HTMLParser):
+	def __init__(self):
+		HTMLParser.__init__(self)
+		self.recording = 0
+		self.data = ""
+	def handle_data(self, data):
+		self.data = data
+
+parser = MyHTMLParser()
+
 class FritzCalls(object):
-	
+
 	def __init__(self, connection, notfoundfile):
 		self.areaCode    = (connection.call_action('X_VoIP','GetVoIPCommonAreaCode'))['NewVoIPAreaCode']
 		self.notfoundfile = notfoundfile
 		if notfoundfile and type(notfoundfile) is list:
 			self.notfoundfile = notfoundfile[0]
-		self.http = urllib3.PoolManager()
+		self.http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED',ca_certs=certifi.where())
 		callURLList = connection.call_action('X_AVM-DE_OnTel','GetCallList')
 		response = self.http.request('GET', callURLList['NewCallListURL'])
 		self.calldict = xmltodict.parse(response.data)['root']
-		
+
 	def get_unknown(self): # get list of callers not listed with their name
 		numberlist = {}
 		for callentry in self.calldict['Call']:
@@ -65,7 +78,7 @@ class FritzCalls(object):
 						startAlternate = callentry['Name'].find('(')
 						numberlist[number] = callentry['Name'][startAlternate+1:len(callentry['Name'])-1]
 		return numberlist
-		
+
 	def remove_not_found(self,numberlist_in):
 		numberlist_out = {}
 		nameNotFoundList = open(self.notfoundfile,'r').readlines()
@@ -79,7 +92,7 @@ class FritzCalls(object):
 				numberlist_out[number] = ''
 		return numberlist_out
 
-	def get_names(self,searchlist):				
+	def get_names(self,searchlist):
 		foundlist = {}
 		nameNotFoundFile_out = open(self.notfoundfile,'a')
 		for number in searchlist.keys():
@@ -91,7 +104,7 @@ class FritzCalls(object):
 			else:
 				# add the area code for local numbers
 				m = re.search('^[1-9][0-9]+', number)
-				if m: 
+				if m:
 					fullNumber = '{}{}'.format(self.areaCode,number)
 				else:
 					fullNumber = number
@@ -115,7 +128,7 @@ class FritzCalls(object):
 					if fullNumber[-1] == "0":
 						fullNumber = fullNumber[:-2]+"0"
 					else:
-						fullNumber = fullNumber[:-1]+"0"
+						fullNumber = fullNumber[:-2]+"0"
 				else:
 					foundlist[fullNumber] = name
 					if fullNumber != number and not numberSaved:
@@ -123,28 +136,29 @@ class FritzCalls(object):
 					numberSaved = True
 		nameNotFoundFile_out.close()
 		return foundlist
-		
+
 	def dastelefonbuch(self,number):
-		lurl = self.http.request('GET', 'http://www3.dastelefonbuch.de/?kw={}&s=a20000&cmd=search&ort_ok=0&sp=3&vert_ok=0&aktion=23'.format(number))
-		line = lurl.data.decode("utf-8",'ignore')
+		lurl = self.http.request('GET', 'https://www.dastelefonbuch.de/R%C3%BCckw%C3%A4rts-Suche/{}'.format(number))
+		line = lurl.data.decode("utf-8","ignore")
 		for ch in ["\r\n","\r","\n"]:
 			line = line.replace(ch, '')
 		m = re.search('<div class="name" title="(.*?)">', line)
 		if m:
-			writeLog('{} = {}({})'.format(number,'dastelefonbuch',m.group(1)))
-			return m.group(1)
+			parser.feed(m.group(1))
+			writeLog('{} = {}({})'.format(number,'dastelefonbuch',parser.data.encode('ascii', 'xmlcharrefreplace').decode('ascii')))
+			return parser.data.encode('ascii', 'xmlcharrefreplace').decode('ascii')
 
 	def dasoertliche(self,number):
 		lurl = self.http.request('GET', 'http://www3.dasoertliche.de/Controller?zvo_ok=&book=22&plz=&quarter=&district=&ciid=&form_name=search_inv&buc=22&kgs={}&buab=&zbuab=&page=5&context=4&action=43&ph={}&image=Finden'.format(number,number))
-		line = lurl.data.decode("iso-8859-15")
+		line = lurl.data.decode("utf-8","ignore")
 		for ch in ["\r\n","\r","\n"]:
 			line = line.replace(ch, '')
-		m = re.search('class="name "><span class="">(.*?)&nbsp;</span>', line)
+		m = re.search('class="name ".*?><span class="">(.*?)&nbsp;</span>', line)
 		if m:
 			writeLog('{} = {}({})'.format(number,'dasoertliche',m.group(1).encode('ascii', 'xmlcharrefreplace').decode('ascii')))
 			return m.group(1).encode('ascii', 'xmlcharrefreplace').decode('ascii')
-		
-	
+
+
 class FritzPhonebook(object):
 
 	def __init__(self, connection, name):
@@ -161,7 +175,7 @@ class FritzPhonebook(object):
 			writeLog(logMessage,True)
 			exit(1)
 		self.get_phonebook()
-						
+
 	def get_phonebook(self):
 		self.http = urllib3.PoolManager()
 		response = self.http.request('GET', self.connection.call_action('X_AVM-DE_OnTel','GetPhonebook',NewPhonebookID=self.bookNumber)['NewPhonebookURL'])
@@ -213,21 +227,21 @@ class FritzPhonebook(object):
 			realName.text = html.parser.HTMLParser().unescape(name)
 		self.connection.call_action('X_AVM-DE_OnTel','SetPhonebookEntry',NewPhonebookEntryData='<?xml version="1.0" encoding="utf-8"?>'+tostring(phonebookEntry).decode("utf-8"),NewPhonebookID=self.bookNumber,NewPhonebookEntryID='')
 		self.get_phonebook()
-			
+
 	def add_entry_list(self, list):
 		if list:
 			for number, name in list.items():
 				entry = self.get_entry(name=name)
 				if entry:
-					self.append_entry(entry, number)	
+					self.append_entry(entry, number)
 				else:
 					self.add_entry(number, name)
 
 
 
-	
+
 class FritzBackwardSearch(object):
-	
+
 	def __init__(self):
 		fname = os.path.join(os.path.dirname(__file__),'fritzBackwardSearch.ini')
 		if os.path.isfile(fname):
@@ -245,7 +259,7 @@ class FritzBackwardSearch(object):
 		for name, value in cfg.items('DEFAULT'):
 			preferences[name] = value
 		return preferences
-			
+
 	# ---------------------------------------------------------
 	# cli-section:
 	# ---------------------------------------------------------
@@ -256,7 +270,7 @@ class FritzBackwardSearch(object):
 							nargs=1, default=self.prefs['password'],
 							help='Fritzbox authentication password')
 		parser.add_argument('-u', '--username',
-							nargs=1, default='',
+							nargs=1, default=self.prefs['fritz_username'],
 							help='Fritzbox authentication username')
 		parser.add_argument('-i', '--ip-address',
 							nargs=1, default=self.prefs['fritz_ip_address'],
@@ -270,26 +284,26 @@ class FritzBackwardSearch(object):
 		parser.add_argument('--phonebook',
 							nargs=1, default=self.prefs['fritz_phone_book'],
 							help='Existing phone book the numbers should be added to. '
-								 'Default: %s' % self.prefs['fritz_phone_book'])  
+								 'Default: %s' % self.prefs['fritz_phone_book'])
 		parser.add_argument('-l', '--logfile',
 							nargs=1, default=self.prefs['logfile'],
 							help='Path/Log file name. '
-								 'Default: %s' % self.prefs['logfile'])                               
+								 'Default: %s' % self.prefs['logfile'])
 		parser.add_argument('-n', '--notfoundfile',
 							nargs=1, default=self.prefs['name_not_found_file'],
 							help='Path/file name where the numbers not found during backward search are saved to in order to prevent further unnessessary searches. '
-								 'Default: %s' % self.prefs['name_not_found_file'])                               
+								 'Default: %s' % self.prefs['name_not_found_file'])
 		parser.add_argument('-s', '--searchnumber',
 							nargs='?', default='',
-							help='Phone number(s) to search for.')                               
+							help='Phone number(s) to search for.')
 		parser.add_argument('-v', '--version',
 							action='version', version=__version__,
 							help='Print the program version')
 		return parser.parse_args()
-	
+
 	def runSearch(self,s=''):
 		if self.prefs['password'] != '':
-			args.password = self.prefs['password']		
+			args.password = self.prefs['password']
 		if args.password == '':
 			writeLog('No password given',True)
 			exit(1)
@@ -319,9 +333,9 @@ class FritzBackwardSearch(object):
 		unknownCallers = calls.remove_not_found(unknownCallers)
 		knownCallers   = calls.get_names(unknownCallers)
 		phonebook.add_entry_list(knownCallers)
-		
-		
-	
+
+
+
 def writeLog(logString, print_to_console=False):
 	if args.logfile != '':
 		logFile_out = open(args.logfile,'a')
