@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import socket
+import socket 
 import select
 import threading
 import time
@@ -141,15 +141,15 @@ class CallMonServer():
 			self.srvSock.listen(5)
 		except Exception as e:
 			tm=time.strftime("%Y.%m.%d-%H:%M:%S")
-			self.writeLog(("%s Cannot open socket %d:"%(tm, self.prefs['callmon_server_socket']), e),True)
+			self.writeLog(("%s Cannot open socket %d:"%(tm, int(self.prefs['callmon_server_socket'])), e),True)
 			return
 
 		while True:
-			if os.path.isfile(self.prefs['process_stop_file']):
+			try:
 				None
-			else:
+			except:
 				self.writeLog('fritzCallMon has been stopped',self.prefs['status_to_terminal'])
-				break
+				sys.exit()
 				
 	def writeLog(self,logString, print_to_console=False):
 		if self.prefs['logfile'] != '':

@@ -1,4 +1,4 @@
 #!/bin/sh
-INSTDIR=/home/fritzbox
+INSTDIR=/home/fritzbox/fritzCallMon
 SCRIPT=$INSTDIR/fritzCallMon.py
-python3 $SCRIPT &
+python3.6 $SCRIPT
