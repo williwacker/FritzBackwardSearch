@@ -5,3 +5,10 @@ __pycache__/
 build/
 help.txt
 fritzCallMon.pid
+nameNotFound.list
+.vscode/launch.json
+.vscode/settings.json
+.vscode/.ropeproject/config.py
+.vscode/.ropeproject/objectdb
+fritzBackwardSearch.log
+test_phonebook.py

@@ -1,0 +1,5 @@
+xmltodict>=0.12.0
+certifi
+urllib3
+fritzconnection
+Beautifulsoup4
