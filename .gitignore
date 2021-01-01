@@ -1,14 +1,10 @@
 *.ini
 *.bat
+*.log
+*.list
 _static/
 __pycache__/
 build/
 help.txt
-fritzCallMon.pid
-nameNotFound.list
-.vscode/launch.json
-.vscode/settings.json
-.vscode/.ropeproject/config.py
-.vscode/.ropeproject/objectdb
-fritzBackwardSearch.log
+.vscode/*
 test_phonebook.py
