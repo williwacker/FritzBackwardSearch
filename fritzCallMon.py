@@ -154,7 +154,7 @@ class CallMonServer():
 			self.srvSock.bind(("", int(self.prefs['callmon_server_socket'])))
 			self.srvSock.listen(5)
 		except Exception as e:
-			logger.error("%s Cannot open socket %d:" % (int(self.prefs['callmon_server_socket'])), e)
+			logger.error("Cannot open socket {} : {}".format(self.prefs['callmon_server_socket'], e))
 			return
 
 		while True:

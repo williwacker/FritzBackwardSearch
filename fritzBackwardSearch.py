@@ -306,7 +306,7 @@ class FritzBackwardSearch(object):
 				for row in csvfile:
 					self.onkz.append(row.strip().split('\t'))
 		else:
-			logger.error('{} not found'.format(fname), True)
+			logger.error('{} not found'.format(fname))
 			exit
 
 	def get_ONKz_length(self, phone_number):
@@ -389,7 +389,8 @@ class FritzBackwardSearch(object):
 			logger.info("Searching for {}".format(searchnumber))
 		if searchnumber:
 			for number in re.split('\W+', searchnumber):
-				if not phonebook.get_entry(number=number):
+				contact = phonebook.get_entry(number=number)
+				if not contact:
 					unknownCallers[number] = ''
 				else:
 					logger.info('{} already in {}'.format(number, args.phonebook))
@@ -399,6 +400,10 @@ class FritzBackwardSearch(object):
 		logger.debug("Length unknownCallers = {}".format(len(unknownCallers)))
 		knownCallers = calls.get_names(unknownCallers)
 		phonebook.add_entry_list(knownCallers)
+		if 'contact_id' in contact:
+			phonebookEntry = phonebook.get_entry(id=contact['contact_id'])['contact']
+			for realName in phonebookEntry.iter('realName'):
+				return realName.text.replace('& ', '&#38; ')
 
 
 if __name__ == '__main__':
