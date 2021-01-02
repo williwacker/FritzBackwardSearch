@@ -1,0 +1,11 @@
+[Unit]
+Description=Process fritzBot
+
+[Service]
+Type=simple
+; Hier das Python aus der virtualenv verwenden
+ExecStart=/etc/.virt_fritzbox/bin/python3 /etc/fritzcallMon/fritzBot.py
+Restart=always
+
+[Install]
+WantedBy=network-up.target
