@@ -87,7 +87,7 @@ class fritzBot(object):
     def echo(self, update: Update, context: CallbackContext) -> None:
         update.message.reply_text(update.message.text)
 
-    def getab(self, bot, update: Update, context: CallbackContext) -> None:
+    def getab(self, update: Update, context: CallbackContext) -> None:
         # Upload the saved phone message
         if self.check_user(update):
             if update.message.text == 'getab':
