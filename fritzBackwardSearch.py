@@ -85,9 +85,8 @@ class FritzCalls(object):
 	def get_unknown(self):  # get list of callers not listed with their name
 		numberlist = {}
 		for callentry in self.calldict['Call']:
-            if datetime.datetime.strptime(callentry['Date'],
-                                          "%d.%m.%y %H:%M") < datetime.datetime.today() - datetime.timedelta(days=7):
-                break
+			if datetime.datetime.strptime(callentry['Date'], "%d.%m.%y %H:%M") < datetime.datetime.today() - datetime.timedelta(days=7):
+				break
 			number = None
 			if callentry['Type'] in ('1', '2') and callentry['Caller'] != None and callentry['Caller'].isdigit():
 				number = callentry['Caller']

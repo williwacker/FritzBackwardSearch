@@ -2,6 +2,7 @@
 *.bat
 *.log
 *.list
+*.wav
 _static/
 __pycache__/
 build/
