@@ -99,7 +99,7 @@ class fritzBot(object):
                 if os.path.isfile(messageFile):
                     update.message.bot.send_audio(chat_id=update.message.chat_id, audio=open(messageFile, 'rb'))
                 else:
-                    update.message.reply_text('Datei {} nicht gefunden'.format(messageFile))
+                    update.message.reply_text('Nachricht {} nicht gefunden'.format(update.message.text[6:]))
             else:
                 update.message.reply_text('Keine AB Nummer angegeben')
 

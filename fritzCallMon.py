@@ -159,7 +159,7 @@ class CallMonServer():
 
 		while True:
 			try:
-				None
+				self.srvSock.listen(5)
 			except:
 				logger.info('fritzCallMon has been stopped')
 				sys.exit()

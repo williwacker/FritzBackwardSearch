@@ -30,6 +30,7 @@ __version__ = '0.2.7'
 import argparse
 import configparser
 import copy
+import datetime
 import html.parser
 import logging
 import os
@@ -84,6 +85,9 @@ class FritzCalls(object):
 	def get_unknown(self):  # get list of callers not listed with their name
 		numberlist = {}
 		for callentry in self.calldict['Call']:
+            if datetime.datetime.strptime(callentry['Date'],
+                                          "%d.%m.%y %H:%M") < datetime.datetime.today() - datetime.timedelta(days=7):
+                break
 			number = None
 			if callentry['Type'] in ('1', '2') and callentry['Caller'] != None and callentry['Caller'].isdigit():
 				number = callentry['Caller']
@@ -97,17 +101,8 @@ class FritzCalls(object):
 						numberlist[number] = callentry['Name'][startAlternate+1:len(callentry['Name'])-1]
 		return numberlist
 
-	def remove_not_found(self, numberlist_in):
-		numberlist_out = {}
-		try:
-			nameNotFoundList = open(self.notfoundfile, 'r').read().splitlines()
-		except:
-			nameNotFoundList = open(self.notfoundfile, 'w+').read().splitlines()
-		return set(numberlist_in.keys()).difference(set(nameNotFoundList))
-
-	def get_names(self, searchlist):
+	def get_names(self, searchlist, nameNotFoundList):
 		foundlist = {}
-		nameNotFoundFile_out = open(self.notfoundfile, 'a')
 		for number in searchlist:
 			origNumber = number
 			# remove international numbers
@@ -137,11 +132,11 @@ class FritzCalls(object):
 #					name = self.dasoertliche(searchlist[number])
 				if not name:
 					logger.info('{} not found'.format(fullNumber))
-					nameNotFoundFile_out.write('{}\n'.format(fullNumber))
+					nameNotFoundList.append(fullNumber)
 					if fullNumber != number and not numberLogged:
-						nameNotFoundFile_out.write('{}\n'.format(number))
-					if origNumber != number and fullNumber != number and not numberLogged:
-						nameNotFoundFile_out.write('{}\n'.format(origNumber))
+						nameNotFoundList.append(number)
+					if origNumber != number and not numberLogged:
+						nameNotFoundList.append(origNumber)
 					numberLogged = True
 					# don't do fuzzy search for mobile numbers and 0800
 					if fullNumber[0:3] in ("015", "016", "017") or fullNumber[0:4] in ("0800"):
@@ -155,7 +150,6 @@ class FritzCalls(object):
 					if fullNumber != number and not numberSaved:
 						foundlist[number] = name
 					numberSaved = True
-		nameNotFoundFile_out.close()
 		return foundlist
 
 	def dasoertliche(self, number):
@@ -278,6 +272,19 @@ class FritzBackwardSearch(object):
 		global args
 		args = self.__get_cli_arguments__()
 		self.__read_ONKz__()
+		self.connection = FritzConnection(
+			address=args.address,
+			port=args.port,
+			user=args.username,
+			password=args.password)
+		self.phonebook = FritzPhonebook(self.connection, name=args.phonebook)
+		self.notfoundfile = args.notfoundfile
+		if args.notfoundfile and type(args.notfoundfile) is list:
+			self.notfoundfile = args.notfoundfile[0]
+		try:
+			self.nameNotFoundList = open(self.notfoundfile, 'r').read().splitlines()
+		except:
+			self.nameNotFoundList = open(self.notfoundfile, 'w+').read().splitlines()
 
 	def __init_logging__(self):
 		numeric_level = getattr(logging, self.prefs['loglevel'].upper(), None)
@@ -296,6 +303,7 @@ class FritzBackwardSearch(object):
 		preferences = {}
 		for name, value in cfg.items('DEFAULT'):
 			preferences[name] = value
+		logger.debug(preferences)
 		return preferences
 
 	def __read_ONKz__(self):  # read area code numbers
@@ -369,45 +377,48 @@ class FritzBackwardSearch(object):
 			exit(1)
 		if args.password and type(args.password) == list:
 			args.password = args.password[0].rstrip()
-		self.connection = FritzConnection(
-			address=args.address,
-			port=args.port,
-			user=args.username,
-			password=args.password)
-		phonebook = FritzPhonebook(self.connection, name=args.phonebook)
 		calls = FritzCalls(self.connection, notfoundfile=args.notfoundfile)
 		unknownCallers = calls.get_unknown()
-		searchnumber = None
+		searchnumber = []
+		nameList = ''
 		if args.searchnumber:
-			searchnumber = args.searchnumber
-			logger.info("Searching for {}".format(searchnumber))
-		if s:
-			if searchnumber != None:
-				searchnumber = ','.join((searchnumber, str(s)))
+			if type(args.searchnumber) == tuple:
+				searchnumber += args.searchnumber
 			else:
-				searchnumber = s
-			logger.info("Searching for {}".format(searchnumber))
+				searchnumber.append(args.searchnumber)
+		if s:
+			if type(s) == tuple:
+				searchnumber += s
+			else:
+				searchnumber.append(s)
 		if searchnumber:
-			for number in re.split('\W+', searchnumber):
-				contact = phonebook.get_entry(number=number)
+			for number in searchnumber:
+				logger.info("Searching for {}".format(number))
+				contact = self.phonebook.get_entry(number=number)
 				if not contact:
 					unknownCallers[number] = ''
+					logger.info('{} not found'.format(number))
+					nameList += 'not found\n'
 				else:
 					logger.info('{} already in {}'.format(number, args.phonebook))
+					for realName in contact['contact'].iter('realName'):
+						nameList += realName.text.replace('& ', '&#38; ')+'\n'
 		else:
 			logger.error("Searchnumber nicht gesetzt")
-		unknownCallers = calls.remove_not_found(unknownCallers)
+		nameNotFoundList_length = len(self.nameNotFoundList)
+		unknownCallers = set(unknownCallers.keys()).difference(set(self.nameNotFoundList))
 		logger.debug("Length unknownCallers = {}".format(len(unknownCallers)))
-		knownCallers = calls.get_names(unknownCallers)
-		phonebook.add_entry_list(knownCallers)
-		if 'contact_id' in contact:
-			phonebookEntry = phonebook.get_entry(id=contact['contact_id'])['contact']
-			for realName in phonebookEntry.iter('realName'):
-				return realName.text.replace('& ', '&#38; ')
+		knownCallers = calls.get_names(unknownCallers, self.nameNotFoundList)
+		if len(self.nameNotFoundList) > nameNotFoundList_length:
+			with open(self.notfoundfile, "w") as outfile:
+				outfile.write("\n".join(self.nameNotFoundList))
+		self.phonebook.add_entry_list(knownCallers)
+		return nameList
 
 
 if __name__ == '__main__':
 	FBS = FritzBackwardSearch()
 #   to search for a number specify it in here:
-#	FBS.runSearch(s=('123','5678'))
+#	FBS.runSearch(s=('111', '1550'))
+#	FBS.runSearch(s=('333'))
 	FBS.runSearch()
