@@ -4,7 +4,7 @@ Description=Process fritzCallMon
 [Service]
 Type=simple
 ; Hier das Python aus der virtualenv verwenden
-ExecStart=/etc/.virt_fritzbox/bin/python3 /etc/fritzcallMon/fritzCallMon.py
+ExecStart=/etc/.virt_fritzbox/bin/python3 /etc/fritzCallMon/fritz.py
 Restart=always
 
 [Install]

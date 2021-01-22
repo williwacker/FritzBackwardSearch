@@ -32,7 +32,7 @@ from fritzBackwardSearch import FritzBackwardSearch
 logger = logging.getLogger(__name__)
 
 
-class fritzBot(object):
+class FritzBot(object):
 
     def __init__(self):
         self.http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
@@ -52,7 +52,7 @@ class fritzBot(object):
         if not isinstance(numeric_level, int):
             raise ValueError('Invalid log level: %s' % loglevel)
         logging.basicConfig(
-            filename=self.cfg.get('DEFAULT', 'logfile_3'),
+            filename=self.cfg.get('DEFAULT', 'logfile'),
             level=numeric_level,
             format=('%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(message)s'),
             datefmt='%Y-%m-%d %H:%M:%S',
@@ -95,7 +95,7 @@ class fritzBot(object):
             else:
                 command = (update.message.text[:5], update.message.text[6:])
             if len(command) > 1:
-                messageFile = os.path.join(os.path.dirname(__file__), 'rec.0.{}.wav'.format(command[1]))
+                messageFile = os.path.join(self.cfg.get('DEFAULT', 'phone_msg_dir'), 'rec.0.{}.wav'.format(command[1]))
                 if os.path.isfile(messageFile):
                     update.message.bot.send_audio(chat_id=update.message.chat_id, audio=open(messageFile, 'rb'))
                 else:
@@ -142,9 +142,9 @@ class fritzBot(object):
         # Run the bot until the you presses Ctrl-C or the process receives SIGINT,
         # SIGTERM or SIGABRT. This should be used most of the time, since
         # start_polling() is non-blocking and will stop the bot gracefully.
-        updater.idle()
+        if __name__ == '__main__':
+            updater.idle()
 
 
 if __name__ == '__main__':
-    BOT = fritzBot()
-    BOT.startBot()
+    FritzBot().startBot()

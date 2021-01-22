@@ -64,10 +64,6 @@ class FritzCalls(object):
 		response = self.http.request('GET', callURLList['NewCallListURL'])
 		self.calldict = xmltodict.parse(response.data)['root']
 
-	def print(self):
-		for callentry in self.calldict['Call']:
-			print(callentry)
-
 	# not working yet
 	def remove_known(self):  # remove all callers listed by name
 		for i in self.calldict['Call']:
@@ -248,9 +244,9 @@ class FritzPhonebook(object):
 									NewPhonebookID=self.bookNumber, NewPhonebookEntryID='')
 		self.get_phonebook()
 
-	def add_entry_list(self, list):
-		if list:
-			for number, name in list.items():
+	def add_entry_list(self, entry_list):
+		if entry_list:
+			for number, name in entry_list.items():
 				entry = self.get_entry(name=name)
 				if entry:
 					self.append_entry(entry, number)
@@ -290,7 +286,7 @@ class FritzBackwardSearch(object):
 		if not isinstance(numeric_level, int):
 			raise ValueError('Invalid log level: %s' % loglevel)
 		logging.basicConfig(
-			filename=self.prefs['logfile_2'],
+			filename=self.prefs['logfile'],
 			level=numeric_level,
 			format=('%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(message)s'),
 			datefmt='%Y-%m-%d %H:%M:%S',
@@ -349,9 +345,9 @@ class FritzBackwardSearch(object):
 							help='Existing phone book the numbers should be added to. '
 							'Default: %s' % self.prefs['fritz_phone_book'])
 		parser.add_argument('-l', '--logfile',
-							nargs=1, default=self.prefs['logfile_2'],
+							nargs=1, default=self.prefs['logfile'],
 							help='Path/Log file name. '
-							'Default: %s' % self.prefs['logfile_2'])
+							'Default: %s' % self.prefs['logfile'])
 		parser.add_argument('-a', '--areacodefile',
 							nargs=1, default=self.prefs['area_code_file'],
 							help='Path/file name where the area codes are listed. '
@@ -395,9 +391,12 @@ class FritzBackwardSearch(object):
 				logger.info("Searching for {}".format(number))
 				contact = self.phonebook.get_entry(number=number)
 				if not contact:
-					unknownCallers[number] = ''
-					logger.info('{} not found'.format(number))
-					nameList += 'not found\n'
+					if number in self.nameNotFoundList:
+						logger.info('{} already in nameNotFoundList'.format(number))
+					else:
+						unknownCallers[number] = ''
+						logger.info('{} not found'.format(number))
+						nameList += 'not found\n'
 				else:
 					logger.info('{} already in {}'.format(number, args.phonebook))
 					for realName in contact['contact'].iter('realName'):
