@@ -22,9 +22,8 @@ class FritzCallsDuringAbsense():
 		self.prefs = prefs
 		self.areaCode = (connection.call_action('X_VoIP', 'GetVoIPCommonAreaCode'))['NewVoIPAreaCode']
 		self.http = urllib3.PoolManager()
-		callURLList = connection.call_action('X_AVM-DE_OnTel', 'GetCallList')
-		self.response = self.http.request('GET', callURLList['NewCallListURL']+'&max=2')
-		entries = re.search("sid=(.*)$", callURLList['NewCallListURL'])
+		self.callURLList = connection.call_action('X_AVM-DE_OnTel', 'GetCallList')
+		entries = re.search("sid=(.*)$", self.callURLList['NewCallListURL'])
 		self.sid = entries.group(0)
 
 	def get_sid(self):
@@ -37,7 +36,8 @@ class FritzCallsDuringAbsense():
 			return self.areaCode + code
 
 	def get_unresolved(self):  # get list of callers not listed with their name
-		calldict = xmltodict.parse(self.response.data)['root']
+		response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=2')
+		calldict = xmltodict.parse(response.data)['root']
 		callentry = calldict['Call'][0]
 		callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
 		callentry['Caller'] = self.get_fullCode(callentry['Caller'])
