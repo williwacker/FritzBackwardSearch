@@ -37,8 +37,8 @@ class FritzCallsDuringAbsense():
 
 	def get_unresolved(self):  # get list of callers not listed with their name
 		response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=2')
-		calldict = xmltodict.parse(response.data)['root']
-		callentry = calldict['Call'][0]
+		calldict = xmltodict.parse(response.data)
+		callentry = calldict['root']['Call'][0]
 		callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
 		callentry['Caller'] = self.get_fullCode(callentry['Caller'])
 		if callentry['Type'] in ('2'):  # missed incoming calls
