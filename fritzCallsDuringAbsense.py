@@ -35,15 +35,19 @@ class FritzCallsDuringAbsense():
 		else:
 			return self.areaCode + code
 
-	def get_unresolved(self):  # get list of callers not listed with their name
-		response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=2')
+	def get_unresolved(self, caller=None):  # get list of callers not listed with their name
+		response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=5')
 		calldict = xmltodict.parse(response.data)
-		callentry = calldict['root']['Call'][0]
-		callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
-		callentry['Caller'] = self.get_fullCode(callentry['Caller'])
-		if callentry['Type'] in ('2'):  # missed incoming calls
-			phone_message = self.get_phone_message(callentry) if callentry['Port'] in ('40') else ""
-			self.put_telegram_message(callentry, phone_message)
+		loop_count = 0
+		for callentry in calldict['root']['Call']:
+			if callentry['Type'] in ('2'):  # missed incoming calls
+				if callentry['Caller'] == caller or (not caller and loop_count == 0):
+					callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
+					callentry['Caller'] = self.get_fullCode(callentry['Caller'])			
+					phone_message = self.get_phone_message(callentry) if callentry['Port'] in ('40') else ""
+					self.put_telegram_message(callentry, phone_message)
+					break
+			loop_count += 1
 
 	def get_phone_message(self, callentry):
 		# list of phone messages

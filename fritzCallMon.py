@@ -72,7 +72,7 @@ class CallMonServer():
 	def __init_logging__(self):
 		numeric_level = getattr(logging, self.prefs['loglevel'].upper(), None)
 		if not isinstance(numeric_level, int):
-			raise ValueError('Invalid log level: %s' % loglevel)
+			raise ValueError('Invalid log level: %s' % self.prefs['loglevel'])
 		logging.basicConfig(
 			filename=self.prefs['logfile'],
 			level=numeric_level,
@@ -177,17 +177,23 @@ class CallMonServer():
 	# Make connection to Fritzbox and retrieve the answering machine message, and inform via Telegram
 	# ###########################################################
 	def runFritzCallsDuringAbsense(self):
-		call_taken = False
+		call_history = {}
 		while True:
 			msgtxt = self.fb_absense_queue.get()
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
 				msg = msgtxt.decode().split(';')
+				if msg[1] == "RING":
+					call_history[msg[3]] = msg[1]
 				if msg[1] == "CONNECT":
-					call_taken = True
+					del call_history[msg[4]]
 				if msg[1] == "DISCONNECT":
-					if not call_taken:
-						self.FCDA.get_unresolved()
-					call_taken = False
+					resolved = []
+					for caller in call_history.keys():
+						self.FCDA.get_unresolved(caller)
+						resolved.append(caller)
+					for caller in resolved:
+						del call_history[caller]
+					
 
 	# ###########################################################
 	# Running as Thread.
