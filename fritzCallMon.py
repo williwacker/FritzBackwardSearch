@@ -181,24 +181,24 @@ class CallMonServer():
 		while True:
 			msgtxt = self.fb_absense_queue.get()
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
-				msg = msgtxt.decode().split(';')
-				if msg[1] == "RING":
-					call_history[msg[3]] = msg[1]
-				if msg[1] == "CONNECT":
-					del call_history[msg[4]]
-				if msg[1] == "DISCONNECT":
-					resolved = []
-					for caller in call_history.keys():
-						self.FCDA.get_unresolved(caller)
-						resolved.append(caller)
-					for caller in resolved:
-						del call_history[caller]
-					
+				type, id, *msg = msgtxt.decode().split(';')[1:]
+				if type == "RING":
+					call_history[id] = msg[0]
+				elif type == "CALL":
+					call_history[id] = msg[1]					
+				elif type == "CONNECT":
+					if id in call_history:
+						del call_history[id]
+				elif type == "DISCONNECT":
+					if id in call_history:
+						self.FCDA.get_unresolved(call_history[id])
+						del call_history[id]
 
 	# ###########################################################
 	# Running as Thread.
 	# Start fritzBot
 	# ###########################################################
+
 	def runFritzBot(self):
 		FritzBot().startBot()
 
