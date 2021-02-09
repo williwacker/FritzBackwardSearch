@@ -181,11 +181,9 @@ class CallMonServer():
 		while True:
 			msgtxt = self.fb_absense_queue.get()
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
-				type, id, *msg = msgtxt.decode().split(';')[1:]
+				type, id, caller = msgtxt.decode().split(';')[1:4]
 				if type == "RING":
-					call_history[id] = msg[0]
-				elif type == "CALL":
-					call_history[id] = msg[1]					
+					call_history[id] = caller
 				elif type == "CONNECT":
 					if id in call_history:
 						del call_history[id]

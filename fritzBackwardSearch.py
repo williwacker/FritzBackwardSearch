@@ -35,9 +35,6 @@ import html.parser
 import logging
 import os
 import re
-import sys
-import time
-from html.parser import HTMLParser
 from xml.etree.ElementTree import XML, fromstring, tostring
 
 import certifi
@@ -104,7 +101,7 @@ class FritzCalls(object):
 			if number.startswith("00"):
 				fullNumber = ""
 				logger.info("Ignoring international number {}".format(number))
-				nameNotFoundFile_out.write('{}\n'.format(number))
+				nameNotFoundList.append(number)
 			# remove pre-dial number
 			elif number.startswith("010"):
 				nextZero = number.find('0', 3)
@@ -222,8 +219,8 @@ class FritzPhonebook(object):
 			newnumber.text = phone_number
 			newnumber.set('type', 'home')
 			newnumber.set('prio', '1')
-		for telephony in phonebookEntry.iter('telephony'):
-			telephony.append(newnumber)
+			for telephony in phonebookEntry.iter('telephony'):
+				telephony.append(newnumber)
 		self.connection.call_action('X_AVM-DE_OnTel', 'SetPhonebookEntry',
 									NewPhonebookEntryData='<?xml version="1.0" encoding="utf-8"?>' +
 									tostring(phonebookEntry).decode("utf-8"),
@@ -284,7 +281,7 @@ class FritzBackwardSearch(object):
 	def __init_logging__(self):
 		numeric_level = getattr(logging, self.prefs['loglevel'].upper(), None)
 		if not isinstance(numeric_level, int):
-			raise ValueError('Invalid log level: %s' % loglevel)
+			raise ValueError('Invalid log level: %s' % self.prefs['loglevel'])
 		logging.basicConfig(
 			filename=self.prefs['logfile'],
 			level=numeric_level,
