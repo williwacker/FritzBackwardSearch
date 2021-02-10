@@ -212,6 +212,7 @@ class FritzPhonebook(object):
 		phonebookEntry = self.get_entry(id=entry['contact_id'])['contact']
 		for realName in phonebookEntry.iter('realName'):
 			realName.text = realName.text.replace('& ', '&#38; ')
+		newnumber = None
 		for number in phonebookEntry.iter('number'):
 			if 'quickdial' in number.attrib:
 				del number.attrib['quickdial']
@@ -219,7 +220,8 @@ class FritzPhonebook(object):
 			newnumber.text = phone_number
 			newnumber.set('type', 'home')
 			newnumber.set('prio', '1')
-			for telephony in phonebookEntry.iter('telephony'):
+		for telephony in phonebookEntry.iter('telephony'):
+			if newnumber:
 				telephony.append(newnumber)
 		self.connection.call_action('X_AVM-DE_OnTel', 'SetPhonebookEntry',
 									NewPhonebookEntryData='<?xml version="1.0" encoding="utf-8"?>' +
@@ -392,11 +394,9 @@ class FritzBackwardSearch(object):
 						logger.info('{} already in nameNotFoundList'.format(number))
 					else:
 						unknownCallers[number] = ''
-						logger.info('{} not found'.format(number))
-						nameList += 'not found\n'
 				else:
-					logger.info('{} already in {}'.format(number, args.phonebook))
 					for realName in contact['contact'].iter('realName'):
+						logger.info('{} = {}({})'.format(number, args.phonebook, realName.text))
 						nameList += realName.text.replace('& ', '&#38; ')+'\n'
 		else:
 			logger.error("Searchnumber nicht gesetzt")
@@ -408,6 +408,10 @@ class FritzBackwardSearch(object):
 			with open(self.notfoundfile, "w") as outfile:
 				outfile.write("\n".join(self.nameNotFoundList))
 		self.phonebook.add_entry_list(knownCallers)
+		if s in knownCallers:
+			nameList += knownCallers[s].replace('& ', '&#38; ')+'\n'
+		elif not nameList:
+			nameList = 'Nicht gefunden'
 		return nameList
 
 

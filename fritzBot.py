@@ -50,7 +50,7 @@ class FritzBot(object):
     def __init_logging__(self):
         numeric_level = getattr(logging, self.cfg.get('DEFAULT', 'loglevel').upper(), None)
         if not isinstance(numeric_level, int):
-            raise ValueError('Invalid log level: %s' % loglevel)
+            raise ValueError('Invalid log level: %s' % self.cfg.get('DEFAULT', 'loglevel'))
         logging.basicConfig(
             filename=self.cfg.get('DEFAULT', 'logfile'),
             level=numeric_level,
@@ -108,8 +108,7 @@ class FritzBot(object):
         if self.check_user(update):
             command = update.message.text.split()
             if len(command) > 1:
-                mySearchEngine = FritzBackwardSearch()
-                result = mySearchEngine.runSearch(s=command[1])
+                result = FritzBackwardSearch().runSearch(s=command[1])
                 update.message.reply_text(result)
             else:
                 update.message.reply_text('Keine Nummer angegeben')
