@@ -3,15 +3,11 @@
 
 import logging
 import re
-import time
-import urllib.parse
-from datetime import date, datetime, timedelta
+import sys
+from datetime import datetime
 
-import certifi
-import telegram
 import urllib3
 import xmltodict
-from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +40,13 @@ class FritzCallsDuringAbsense():
 				if callentry['Type'] in ('2'):  # missed incoming calls
 					if callentry['Caller'] == caller or (not caller and loop_count == 0):
 						callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
-						callentry['Caller'] = self.get_fullCode(callentry['Caller'])			
+						callentry['Caller'] = self.get_fullCode(callentry['Caller'])
 						phone_message = self.get_phone_message(callentry) if callentry['Port'] in ('40') else ""
 						self.put_telegram_message(callentry, phone_message)
 						break
-				loop_count += 1
+					loop_count += 1
 		except:
-			pass
+			logger.error("Unexpected error:", sys.exc_info()[0])
 
 	def get_phone_message(self, callentry):
 		# list of phone messages
@@ -73,7 +69,7 @@ class FritzCallsDuringAbsense():
 		if callentry['Caller'] is None:
 			callentry['Caller'] = ""
 		if callentry['Name'] is None:
-			callentry['Name'] = ""			
+			callentry['Name'] = ""
 		calltime = datetime.strptime(callentry['Date'], '%d.%m.%y %H:%M').strftime("%Y.%m.%d %H:%M")
 		if phone_message:
 			text = '{0} {1} {2} /getab{3}'.format(

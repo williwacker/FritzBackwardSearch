@@ -35,7 +35,7 @@ import html.parser
 import logging
 import os
 import re
-from xml.etree.ElementTree import XML, fromstring, tostring
+from xml.etree.ElementTree import fromstring, tostring
 
 import certifi
 import urllib3

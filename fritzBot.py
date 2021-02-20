@@ -13,16 +13,12 @@ Depends on fritzBackwardSearch
 
 __version__ = '0.0.2'
 
-import argparse
 import configparser
 import logging
 import os
-import re
 
 import certifi
 import urllib3
-import xmltodict
-from fritzconnection import FritzConnection
 from telegram import Update
 from telegram.ext import (CallbackContext, CommandHandler, Filters,
                           MessageHandler, Updater)
