@@ -180,15 +180,17 @@ class CallMonServer():
 		call_history = {}
 		while True:
 			msgtxt = self.fb_absense_queue.get()
+			logger.info(msgtxt)
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
-				type, id, caller = msgtxt.decode().split(';')[1:4]
+				type, id, caller, port = msgtxt.decode().split(';')[1:5]
 				if type == "RING":
 					call_history[id] = caller
-				elif type == "CONNECT":
+				elif type == "CONNECT" and port != "40":
 					if id in call_history:
 						del call_history[id]
 				elif type == "DISCONNECT":
 					if id in call_history:
+						logger.info('call FCDA '+call_history[id])
 						self.FCDA.get_unresolved(call_history[id])
 						del call_history[id]
 
