@@ -165,7 +165,7 @@ class CallMonServer():
 		while True:
 			msgtxt = self.fb_queue.get()
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
-				logger.info(msgtxt)
+#				logger.info(msgtxt)
 				msg = msgtxt.decode().split(';')
 				if msg[1] == "RING":
 					self.FBS.runSearch(s=msg[3])
@@ -185,10 +185,14 @@ class CallMonServer():
 				type, id, caller, port = msgtxt.decode().split(';')[1:5]
 				if type == "RING":
 					call_history[id] = caller
+					logger.info(call_history)
 				elif type == "CONNECT" and port != "40":
+					print(call_history)
 					if id in call_history:
 						del call_history[id]
+					logger.info(call_history)
 				elif type == "DISCONNECT":
+					logger.info(call_history)
 					if id in call_history:
 						logger.info('call FCDA '+call_history[id])
 						self.FCDA.get_unresolved(call_history[id])
