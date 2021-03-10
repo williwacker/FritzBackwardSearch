@@ -4,7 +4,6 @@
 import configparser
 import logging
 import os
-import select
 import socket
 import sys
 import threading
@@ -187,14 +186,13 @@ class CallMonServer():
 					call_history[id] = caller
 					logger.info(call_history)
 				elif type == "CONNECT" and port != "40":
-					print(call_history)
 					if id in call_history:
 						del call_history[id]
 					logger.info(call_history)
 				elif type == "DISCONNECT":
 					logger.info(call_history)
 					if id in call_history:
-						logger.info('call FCDA '+call_history[id])
+						logger.info('calling FCDA '+call_history[id])
 						self.FCDA.get_unresolved(call_history[id])
 						del call_history[id]
 

@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import re
 import os
-import sys
+import re
+import time
 from datetime import datetime
 
 import urllib3
@@ -33,25 +33,25 @@ class FritzCallsDuringAbsense():
 			return self.areaCode + code
 
 	def get_unresolved(self, caller=None):  # get list of callers not listed with their name
-		logger.info("in get_unresolved()")
-		response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=5')
-		calldict = xmltodict.parse(response.data)
-		try:
-			loop_count = 0
-			for callentry in calldict['root']['Call']:
-				logger.info("callentry['Type']="+callentry['Type'])
-				if callentry['Type'] in ('2'):  # missed incoming calls
-					logger.info("callentry['Caller']="+callentry['Caller'])
-					if callentry['Caller'] == caller or (not caller and loop_count == 0):
+		for loop_count in range(0, 5):
+			logger.info('LoopCount='+str(loop_count))
+			response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=1')
+			calldict = xmltodict.parse(response.data)
+			if 'root' in calldict:
+				if 'Call' in calldict['root']:
+					callentry = calldict['root']['Call']
+					logger.info("callentry['Type']="+callentry['Type'])
+					if callentry['Type'] in ('2'):  # missed incoming calls
+						logger.info("callentry['Caller']="+callentry['Caller'])
 						callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
 						callentry['Caller'] = self.get_fullCode(callentry['Caller'])
 						phone_message = self.get_phone_message(callentry) if callentry['Port'] in ('40') else ""
 						logger.info("phone_message="+str(phone_message))
 						self.put_telegram_message(callentry, phone_message)
-						break
-					loop_count += 1
-		except:
-			logger.error("Unexpected error:", sys.exc_info()[0])
+					break
+			else:
+				logger.info(calldict)
+				time.sleep(5)
 
 	def get_phone_message(self, callentry):
 		# list of phone messages
