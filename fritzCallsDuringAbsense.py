@@ -22,6 +22,7 @@ class FritzCallsDuringAbsense():
 		self.callURLList = connection.call_action('X_AVM-DE_OnTel', 'GetCallList')
 		entries = re.search("sid=(.*)$", self.callURLList['NewCallListURL'])
 		self.sid = entries.group(0)
+		self.unresolved_list = []
 
 	def get_sid(self):
 		return self.sid
@@ -32,18 +33,19 @@ class FritzCallsDuringAbsense():
 		else:
 			return self.areaCode + code
 
-	def get_unresolved(self, caller=None):  # get list of callers not listed with their name
-		for loop_count in range(0, 5):
-			logger.info('LoopCount='+str(loop_count))
+	def set_unresolved(self, caller):
+		self.unresolved_list.append(caller)
+
+	def get_unresolved(self):
+		for caller in list(self.unresolved_list):
 			response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=5')
 			calldict = xmltodict.parse(response.data)
 			if 'root' in calldict:
 				if 'Call' in calldict['root']:
 					self.process_notification(calldict['root']['Call'], caller)
-					break
+					self.unresolved_list.remove(caller)
 			else:
 				logger.info(calldict)
-				time.sleep(5)
 
 	def process_notification(self, calldict, caller):
 		for callentry in calldict:

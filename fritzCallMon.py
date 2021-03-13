@@ -8,6 +8,7 @@ import socket
 import sys
 import threading
 import time
+import datetime
 from queue import Queue
 
 from fritzconnection import FritzConnection
@@ -66,6 +67,8 @@ class CallMonServer():
 		self.FBS = FritzBackwardSearch()
 		self.FCDA = FritzCallsDuringAbsense(self.connection, self.prefs)
 
+#		self.FCDA.set_unresolved('067351648')
+#		self.FCDA.set_unresolved('067351550')
 #		self.FCDA.get_unresolved()
 
 	def __init_logging__(self):
@@ -164,7 +167,6 @@ class CallMonServer():
 		while True:
 			msgtxt = self.fb_queue.get()
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
-#				logger.info(msgtxt)
 				msg = msgtxt.decode().split(';')
 				if msg[1] == "RING":
 					self.FBS.runSearch(s=msg[3])
@@ -193,7 +195,7 @@ class CallMonServer():
 					logger.info(call_history)
 					if id in call_history:
 						logger.info('calling FCDA '+call_history[id])
-						self.FCDA.get_unresolved(call_history[id])
+						self.FCDA.set_unresolved(call_history[id])
 						del call_history[id]
 
 	# ###########################################################
@@ -224,6 +226,11 @@ class CallMonServer():
 			except:
 				logger.info('fritzCallMon has been stopped')
 				sys.exit()
+
+			now = datetime.datetime.now()
+			if now.minute % 5 == 0 and now.second == 0:
+				self.FCDA.get_unresolved()
+				time.sleep(1)
 
 
 if __name__ == '__main__':
