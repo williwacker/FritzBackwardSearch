@@ -4,7 +4,6 @@
 import logging
 import os
 import re
-import time
 from datetime import datetime
 
 import urllib3
@@ -39,6 +38,8 @@ class FritzCallsDuringAbsense():
 	def get_unresolved(self):
 		for caller in list(self.unresolved_list):
 			response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=5')
+			if response.status != 200:
+				logger.error('response status='+str(response.status))
 			calldict = xmltodict.parse(response.data)
 			if 'root' in calldict:
 				if 'Call' in calldict['root']:

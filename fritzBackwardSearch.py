@@ -220,13 +220,13 @@ class FritzPhonebook(object):
 			newnumber.text = phone_number
 			newnumber.set('type', 'home')
 			newnumber.set('prio', '1')
-		for telephony in phonebookEntry.iter('telephony'):
-			if newnumber:
+		if not newnumber == None:
+			for telephony in phonebookEntry.iter('telephony'):
 				telephony.append(newnumber)
-		self.connection.call_action('X_AVM-DE_OnTel', 'SetPhonebookEntry',
-									NewPhonebookEntryData='<?xml version="1.0" encoding="utf-8"?>' +
-									tostring(phonebookEntry).decode("utf-8"),
-									NewPhonebookID=self.bookNumber, NewPhonebookEntryID=entry['contact_id'])
+			self.connection.call_action('X_AVM-DE_OnTel', 'SetPhonebookEntry',
+										NewPhonebookEntryData='<?xml version="1.0" encoding="utf-8"?>' +
+										tostring(phonebookEntry).decode("utf-8"),
+										NewPhonebookID=self.bookNumber, NewPhonebookEntryID=entry['contact_id'])
 
 	def add_entry(self, phone_number, name):
 		phonebookEntry = fromstring(
