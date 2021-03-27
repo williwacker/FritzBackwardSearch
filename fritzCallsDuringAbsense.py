@@ -36,23 +36,27 @@ class FritzCallsDuringAbsense():
 		self.unresolved_list.append(caller)
 
 	def get_unresolved(self):
-		for caller in list(self.unresolved_list):
-			response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=5')
-			if response.status != 200:
-				logger.error('response status='+str(response.status))
-			calldict = xmltodict.parse(response.data)
-			if 'root' in calldict:
-				if 'Call' in calldict['root']:
-					self.process_notification(calldict['root']['Call'], caller)
-					self.unresolved_list.remove(caller)
-			else:
-				logger.info(calldict)
+		if self.unresolved_list:
+			logger.info(self.unresolved_list)
+			for caller in list(self.unresolved_list):
+				logger.info(self.prefs)
+				response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=50')
+				if response.status != 200:
+					logger.error('response status='+str(response.status))
+				calldict = xmltodict.parse(response.data)
+				if 'root' in calldict:
+					if 'Call' in calldict['root']:
+						self.process_notification(calldict['root']['Call'], caller)
+						self.unresolved_list.remove(caller)
+				else:
+					logger.info(calldict)
 
 	def process_notification(self, calldict, caller):
 		for callentry in calldict:
+			logger.info(callentry)
 			if callentry['Caller'] == caller:
 				logger.info("callentry['Type']="+callentry['Type'])
-				if callentry['Type'] in ('2'):  # missed incoming calls
+				if callentry['Type'] == '2' or (callentry['Type'] == '1' and callentry['Port'] == '40'):  # missed incoming calls
 					logger.info("callentry['Caller']="+callentry['Caller'])
 					callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
 					callentry['Caller'] = self.get_fullCode(callentry['Caller'])

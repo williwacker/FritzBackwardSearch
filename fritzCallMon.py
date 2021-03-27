@@ -228,7 +228,7 @@ class CallMonServer():
 				sys.exit()
 
 			now = datetime.datetime.now()
-			if now.minute % 5 == 0 and now.second == 0:
+			if now.minute % 1 == 0 and now.second == 0:
 				self.FCDA.get_unresolved()
 				time.sleep(1)
 
