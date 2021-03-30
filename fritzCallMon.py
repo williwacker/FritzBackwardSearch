@@ -183,11 +183,14 @@ class CallMonServer():
 			msgtxt = self.fb_absense_queue.get()
 			logger.info(msgtxt)
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
-				type, id, caller, port = msgtxt.decode().split(';')[1:5]
+				# RING;ID;CALLER;CALLED;
+				# CONNECT;ID;PORT;CALLER;
+				# DISCONNECT;ID;SECONDS;
+				type, id, caller_or_port = msgtxt.decode().split(';')[1:4]
 				if type == "RING":
-					call_history[id] = caller
+					call_history[id] = caller_or_port
 					logger.info(call_history)
-				elif type == "CONNECT" and port != "40":
+				elif type == "CONNECT" and caller_or_port != "40":
 					if id in call_history:
 						del call_history[id]
 					logger.info(call_history)
@@ -228,7 +231,7 @@ class CallMonServer():
 				sys.exit()
 
 			now = datetime.datetime.now()
-			if now.minute % 1 == 0 and now.second == 0:
+			if now.minute % 5 == 0 and now.second == 0:
 				self.FCDA.get_unresolved()
 				time.sleep(1)
 

@@ -39,17 +39,18 @@ class FritzCallsDuringAbsense():
 		if self.unresolved_list:
 			logger.info(self.unresolved_list)
 			for caller in list(self.unresolved_list):
-				logger.info(self.prefs)
 				response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=50')
+				calldict = xmltodict.parse(response.data)
 				if response.status != 200:
 					logger.error('response status='+str(response.status))
-				calldict = xmltodict.parse(response.data)
-				if 'root' in calldict:
-					if 'Call' in calldict['root']:
-						self.process_notification(calldict['root']['Call'], caller)
-						self.unresolved_list.remove(caller)
+					logger.error(calldict)
 				else:
-					logger.info(calldict)
+					if 'root' in calldict:	
+						if 'Call' in calldict['root']:
+							self.process_notification(calldict['root']['Call'], caller)
+							self.unresolved_list.remove(caller)
+					else:
+						logger.error(calldict)
 
 	def process_notification(self, calldict, caller):
 		for callentry in calldict:
