@@ -171,6 +171,7 @@ class CallMonServer():
 	# ###########################################################
 	def runFritzBackwardSearch(self):
 		while True:
+			time.sleep(0.01)
 			msgtxt = self.fb_queue.get()
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
 				msg = msgtxt.decode().split(';')
@@ -186,6 +187,7 @@ class CallMonServer():
 	def runFritzCallsDuringAbsense(self):
 		call_history = {}
 		while True:
+			time.sleep(0.01)
 			msgtxt = self.fb_absense_queue.get()
 			logger.info(msgtxt)
 			if not (msgtxt == "CONNECTION_LOST" or msgtxt == "REFRESH"):
@@ -223,7 +225,7 @@ class CallMonServer():
 			now = datetime.datetime.now()
 			if now.minute % 2 == 0 and now.second == 0:
 				self.FWLAN.get_active_devices()
-				time.sleep(1)
+			time.sleep(1)
 
 	# ###########################################################
 	# Start fritzCallMon Server
