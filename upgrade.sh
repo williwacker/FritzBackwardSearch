@@ -14,6 +14,7 @@ git merge
 if [[ $? == 0 ]]; then
     echo 'restart fritzCallMon'
     systemctl restart fritzCallMon.service
+    systemctl status  fritzCallMon.service
 else
     echo "git merge failed"
     echo -n "Do you wanna stash your changes (y/n)? "

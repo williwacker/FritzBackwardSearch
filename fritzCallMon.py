@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import configparser
+import datetime
 import logging
 import os
 import socket
 import sys
 import threading
 import time
-import datetime
 from queue import Queue
 
 from fritzconnection import FritzConnection
@@ -16,6 +16,7 @@ from fritzconnection import FritzConnection
 from fritzBackwardSearch import FritzBackwardSearch
 from fritzBot import FritzBot
 from fritzCallsDuringAbsense import FritzCallsDuringAbsense
+from fritzWLAN import FritzWLANStatus
 
 """
 
@@ -63,9 +64,10 @@ class CallMonServer():
 		self.fb_queue = Queue()  # Meldungs-Übergabe von runFritzboxCallMonitor() an runFritzBackwardSearch()
 		self.fb_absense_queue = Queue()
 
-		self.startFritzboxCallMonitor()
 		self.FBS = FritzBackwardSearch()
 		self.FCDA = FritzCallsDuringAbsense(self.connection, self.prefs)
+		self.FWLAN = FritzWLANStatus(self.connection, self.prefs)
+		self.startFritzboxCallMonitor()
 
 #		self.FCDA.set_unresolved('067351648')
 #		self.FCDA.set_unresolved('067351550')
@@ -114,6 +116,10 @@ class CallMonServer():
 		worker4 = threading.Thread(target=self.runFritzBot, name="runFritzBot")
 		worker4.setDaemon(True)
 		worker4.start()
+
+		worker5 = threading.Thread(target=self.runFritzWLANStatus, name="runFritzWLANStatus")
+		worker5.setDaemon(True)
+		worker5.start()
 
 	# ###########################################################
 	# Running as Thread.
@@ -205,9 +211,19 @@ class CallMonServer():
 	# Running as Thread.
 	# Start fritzBot
 	# ###########################################################
-
 	def runFritzBot(self):
 		FritzBot().startBot()
+
+	# ###########################################################
+	# Running as Thread.
+	# Start fritzWLANStatus
+	# ###########################################################
+	def runFritzWLANStatus(self):
+		while True:
+			now = datetime.datetime.now()
+			if now.minute % 2 == 0 and now.second == 0:
+				self.FWLAN.get_active_devices()
+				time.sleep(1)
 
 	# ###########################################################
 	# Start fritzCallMon Server
