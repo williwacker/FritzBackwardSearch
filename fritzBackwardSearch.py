@@ -118,7 +118,7 @@ class FritzCalls(object):
 			numberLogged = False
 			numberSaved = False
 			l_onkz = FritzBackwardSearch().get_ONKz_length(fullNumber)
-			while (name == None and len(fullNumber) >= (l_onkz + 3)):
+			while (name == None and len(fullNumber) > (l_onkz + 3)):
 				name = self.dasoertliche(fullNumber)
 #				if not name and searchlist[number] != '':
 #					name = self.dasoertliche(searchlist[number])
@@ -419,5 +419,4 @@ if __name__ == '__main__':
 	FBS = FritzBackwardSearch()
 #   to search for a number specify it in here:
 #	FBS.runSearch(s=('111', '1550'))
-#	FBS.runSearch(s=('333'))
 	FBS.runSearch()

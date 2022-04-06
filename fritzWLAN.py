@@ -2,7 +2,8 @@ import configparser
 import logging
 import os
 
-from fritzconnection.lib.fritzwlan import FritzWLAN
+#from fritzconnection.lib.fritzwlan import FritzWLAN
+from fritzconnection.lib.fritzhosts import FritzHosts
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +32,18 @@ class FritzWLANStatus(object):
 	def get_active_devices(self):
 		try:
 			online_status = {}
+			'''
 			hosts = [host['mac']
 					for host in FritzWLAN(self.connection, service=1).get_hosts_info() if host['status'] == True]  # 2.4GHz
 			hosts += [host['mac']
 					for host in FritzWLAN(self.connection, service=2).get_hosts_info() if host['status'] == True]  # 5GHz
 			hosts += [host['mac']
 					for host in FritzWLAN(self.connection, service=3).get_hosts_info() if host['status'] == True]  # GuestAccount
+			'''
+			hosts = [host['mac']
+                     for host in FritzHosts(self.connection).get_active_hosts() if host['status'] == True]		
 			for name, mac in self.wlan_prefs.items():
-				online_status[name] = 1 if mac in hosts else 0
+				online_status[name] = 'ON' if mac in hosts else 'OFF'
 			# send as mqtt message
 			logger.info(online_status)
 			cmd = 'mosquitto_pub -d -h homematic-raspi -t server/fritz/maconline/'
