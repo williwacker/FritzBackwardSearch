@@ -78,7 +78,8 @@ class FritzCalls(object):
 	def get_unknown(self):  # get list of callers not listed with their name
 		numberlist = {}
 		for callentry in self.calldict['Call']:
-			if datetime.datetime.strptime(callentry['Date'], "%d.%m.%y %H:%M") < datetime.datetime.today() - datetime.timedelta(days=7):
+			if datetime.datetime.strptime(callentry['Date'],
+										  "%d.%m.%y %H:%M") < datetime.datetime.today() - datetime.timedelta(days=7):
 				break
 			number = None
 			if callentry['Type'] in ('1', '2') and callentry['Caller'] != None and callentry['Caller'].isdigit():
@@ -309,7 +310,7 @@ class FritzBackwardSearch(object):
 					self.onkz.append(row.strip().split('\t'))
 		else:
 			logger.error('{} not found'.format(fname))
-			exit
+#			exit(1)
 
 	def get_ONKz_length(self, phone_number):
 		for row in self.onkz:
@@ -367,7 +368,7 @@ class FritzBackwardSearch(object):
 		if self.prefs['password'] != '':
 			args.password = self.prefs['password']
 		if args.password == '':
-			logger.error('No password given', True)
+			logger.error('No password given')
 			exit(1)
 		if args.password and type(args.password) == list:
 			args.password = args.password[0].rstrip()

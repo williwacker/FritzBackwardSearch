@@ -14,7 +14,7 @@ from queue import Queue
 from fritzconnection import FritzConnection
 
 from fritzBackwardSearch import FritzBackwardSearch
-from fritzBot import FritzBot
+#from fritzBot import FritzBot
 from fritzCallsDuringAbsense import FritzCallsDuringAbsense
 from fritzWLAN import FritzWLANStatus
 
@@ -113,9 +113,9 @@ class CallMonServer():
 		worker3.setDaemon(True)
 		worker3.start()
 
-		worker4 = threading.Thread(target=self.runFritzBot, name="runFritzBot")
-		worker4.setDaemon(True)
-		worker4.start()
+#		worker4 = threading.Thread(target=self.runFritzBot, name="runFritzBot")
+#		worker4.setDaemon(True)
+#		worker4.start()
 
 		worker5 = threading.Thread(target=self.runFritzWLANStatus, name="runFritzWLANStatus")
 		worker5.setDaemon(True)
@@ -198,10 +198,8 @@ class CallMonServer():
 				if type == "RING":
 					call_history[id] = caller_or_port
 					logger.info(call_history)
-				elif type == "CONNECT" and caller_or_port != "40":
-					if id in call_history:
-						del call_history[id]
-					logger.info(call_history)
+#				elif type == "CONNECT":
+#					logger.info(call_history)
 				elif type == "DISCONNECT":
 					logger.info(call_history)
 					if id in call_history:
@@ -213,8 +211,8 @@ class CallMonServer():
 	# Running as Thread.
 	# Start fritzBot
 	# ###########################################################
-	def runFritzBot(self):
-		FritzBot().startBot()
+#	def runFritzBot(self):
+#		FritzBot().startBot()
 
 	# ###########################################################
 	# Running as Thread.
@@ -249,7 +247,7 @@ class CallMonServer():
 				sys.exit()
 
 			now = datetime.datetime.now()
-			if now.minute % 5 == 0 and now.second == 0:
+			if now.minute % 1 == 0 and now.second == 0:
 				self.FCDA.get_unresolved()
 				time.sleep(1)
 

@@ -45,7 +45,7 @@ class FritzCallsDuringAbsense():
 					logger.error('response status='+str(response.status))
 					logger.error(calldict)
 				else:
-					if 'root' in calldict:	
+					if 'root' in calldict:
 						if 'Call' in calldict['root']:
 							self.process_notification(calldict['root']['Call'], caller)
 							self.unresolved_list.remove(caller)
@@ -57,11 +57,11 @@ class FritzCallsDuringAbsense():
 			logger.info(callentry)
 			if callentry['Caller'] == caller:
 				logger.info("callentry['Type']="+callentry['Type'])
-				if callentry['Type'] == '2' or (callentry['Type'] == '1' and callentry['Port'] == '40'):  # missed incoming calls
+				if callentry['Type'] in ('1', '2'):  # missed incoming calls
 					logger.info("callentry['Caller']="+callentry['Caller'])
 					callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
 					callentry['Caller'] = self.get_fullCode(callentry['Caller'])
-					phone_message = self.get_phone_message(callentry) if callentry['Port'] in ('40') else ""
+					phone_message = self.get_phone_message(callentry)  # if callentry['Port'] in ('40') else ""
 					logger.info("phone_message="+str(phone_message))
 					self.put_telegram_message(callentry, phone_message)
 				return
@@ -88,7 +88,7 @@ class FritzCallsDuringAbsense():
 			callentry['Caller'] = ""
 		if callentry['Name'] is None:
 			callentry['Name'] = ""
-		calltime = datetime.strptime(callentry['Date'], '%d.%m.%y %H:%M').strftime("%Y.%m.%d %H:%M")
+		calltime = datetime.strptime(callentry['Date'], '%d.%m.%y %H:%M').strftime("%d.%m.%Y %H:%M")
 		if phone_message:
 			text = '{0} {1} {2} /getab{3}'.format(
 				calltime,
@@ -102,8 +102,9 @@ class FritzCallsDuringAbsense():
 				callentry['Name'].encode('utf-8').decode('utf-8'),
 				callentry['Caller']
 			)
-		self.http.request(
-			'GET', 'https://api.telegram.org/bot{}/sendMessage?chat_id={}\&text={}'.format(self.prefs['telegram_token'],
-																						   self.prefs['telegram_chat_id'],
-																						   text)
-		)
+		self.http.headers = {'Content-type': 'application/json'}
+		try:
+			self.http.request('GET', 'https://api.telegram.org/bot{}/sendMessage?chat_id={}\&text={}'.format(
+				self.prefs['telegram_token'], self.prefs['telegram_chat_id'], text), timeout=4.0, retries=False)
+		except Exception as e:
+			logger.error(e)

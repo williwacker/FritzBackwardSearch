@@ -40,8 +40,7 @@ class FritzWLANStatus(object):
 			hosts += [host['mac']
 					for host in FritzWLAN(self.connection, service=3).get_hosts_info() if host['status'] == True]  # GuestAccount
 			'''
-			hosts = [host['mac']
-                     for host in FritzHosts(self.connection).get_active_hosts() if host['status'] == True]		
+			hosts = [host['mac'] for host in FritzHosts(self.connection).get_active_hosts() if host['status'] == True]
 			for name, mac in self.wlan_prefs.items():
 				online_status[name] = 'ON' if mac in hosts else 'OFF'
 			# send as mqtt message
