@@ -21,11 +21,12 @@ Do a backward search with the used number and if a name has been found add the e
 25.07.2017 0.2.5 WK  Correct html conversion in dastelefonbuch
 09.08.2017 0.2.6 WK  Add area code length into suzzy search. Avoid adding pre-dial numbers into the phone book
 27.08.2017 0.2.7 WK  Replace & in phonebook name with u. as AVM hasn't fixed this problem yet
+02.03.2023 0.3.3 WK  Adopt to latest dasoertliche output
 
 
 """
 
-__version__ = '0.2.7'
+__version__ = '0.3.0'
 
 import argparse
 import configparser
@@ -39,9 +40,10 @@ from xml.etree.ElementTree import fromstring, tostring
 
 import certifi
 import urllib3
-import xmltodict
 from bs4 import BeautifulSoup
 from fritzconnection import FritzConnection
+from fritzconnection.lib.fritzcall import Call, FritzCall
+from fritzconnection.lib.fritzphonebook import FritzPhonebook
 
 logger = logging.getLogger(__name__)
 
@@ -51,52 +53,40 @@ args.logfile = ''
 
 class FritzCalls(object):
 
-	def __init__(self, connection, notfoundfile):
-		self.areaCode = (connection.call_action('X_VoIP', 'GetVoIPCommonAreaCode'))['NewVoIPAreaCode']
-		self.notfoundfile = notfoundfile
-		if notfoundfile and type(notfoundfile) is list:
-			self.notfoundfile = notfoundfile[0]
+	def __init__(self, connection, nameNotFoundList):
 		self.http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
-		callURLList = connection.call_action('X_AVM-DE_OnTel', 'GetCallList')
-		response = self.http.request('GET', callURLList['NewCallListURL'])
-		self.calldict = xmltodict.parse(response.data)['root']
-
-	# not working yet
-	def remove_known(self):  # remove all callers listed by name
-		for i in self.calldict['Call']:
-			remove = True
-			callentry = self.calldict['Call'][i]
-			if (callentry['Type'] in ('1', '2') and callentry['Caller'] != None and callentry['Caller'].isdigit()) \
-					or (callentry['Type'] == '3' and callentry['Called'] != None and callentry['Called'].isdigit()):
-				if callentry['Name'] == None or callentry['Name'].startswith(
-						callentry['Caller']) or callentry['Name'].startswith(
-						callentry['Called']):
-					remove = False
-			if remove:
-				del self.calldict['Call'][i]
+		self.areaCode = (connection.call_action('X_VoIP', 'GetVoIPCommonAreaCode'))['NewVoIPAreaCode']
+		self.nameNotFoundList = nameNotFoundList
+		self.calldict = FritzCall(fc=connection).get_calls()
+		self.get_unknown()
 
 	def get_unknown(self):  # get list of callers not listed with their name
-		numberlist = {}
-		for callentry in self.calldict['Call']:
-			if datetime.datetime.strptime(callentry['Date'],
-										  "%d.%m.%y %H:%M") < datetime.datetime.today() - datetime.timedelta(days=7):
-				break
-			number = None
-			if callentry['Type'] in ('1', '2') and callentry['Caller'] != None and callentry['Caller'].isdigit():
-				number = callentry['Caller']
-			elif callentry['Type'] == '3' and callentry['Called'] != None and callentry['Called'].isdigit():
-				number = callentry['Called']
-			if number:
-				if callentry['Name'] == None or callentry['Name'].startswith(number):
-					numberlist[number] = ''
-					if callentry['Name'] != None and callentry['Name'].startswith(number):
-						startAlternate = callentry['Name'].find('(')
-						numberlist[number] = callentry['Name'][startAlternate+1:len(callentry['Name'])-1]
-		return numberlist
+		self.unknownCallers = {}
+		for i in range(len(self.calldict)-1, -1, -1):
+			if self.calldict[i].Name and not self.calldict[i].Name.isdigit() and not '(' in self.calldict[i].Name:
+				del self.calldict[i]
+				continue
+			elif datetime.datetime.strptime(
+					self.calldict[i].Date, "%d.%m.%y %H:%M") < datetime.datetime.today() - datetime.timedelta(days=7):
+				del self.calldict[i]
+				continue
+			if self.calldict[i].Caller and self.calldict[i].Type in ('1', '2') and self.calldict[i].Caller.isdigit():
+				if self.calldict[i].Name and '(' in self.calldict[i].Name:
+					new = Call()
+					startAlternate = self.calldict[i].Name.find('(')
+					new.Name = self.calldict[i].Name[startAlternate+1:len(self.calldict[i].Name)-1]
+					if new.Name not in self.nameNotFoundList:
+						self.calldict.append(new)
+				self.calldict[i].Name = self.calldict[i].Caller
+			if self.calldict[i].Called and self.calldict[i].Type == '3' and self.calldict[i].Called.isdigit():
+				self.calldict[i].Name = self.calldict[i].Called
+			if self.calldict[i].Name in self.nameNotFoundList:
+				del self.calldict[i]
 
-	def get_names(self, searchlist, nameNotFoundList):
+	def get_names(self, nameNotFoundList):
 		foundlist = {}
-		for number in searchlist:
+		for call in self.calldict:
+			number = call.Name
 			origNumber = number
 			# remove international numbers
 			if number.startswith("00"):
@@ -121,8 +111,6 @@ class FritzCalls(object):
 			l_onkz = FritzBackwardSearch().get_ONKz_length(fullNumber)
 			while (name == None and len(fullNumber) > (l_onkz + 3)):
 				name = self.dasoertliche(fullNumber)
-#				if not name and searchlist[number] != '':
-#					name = self.dasoertliche(searchlist[number])
 				if not name:
 					logger.info('{} not found'.format(fullNumber))
 					nameNotFoundList.append(fullNumber)
@@ -153,44 +141,43 @@ class FritzCalls(object):
 		content = response.data.decode("utf-8", "ignore") \
 			.replace('\t', '').replace('\n', '').replace('\r', '').replace('&nbsp;', ' ')
 		soup = BeautifulSoup(content, 'html.parser')
-		name = soup.find('span', class_='st-treff-name')
-		if name:
-			logger.info('{} = dasoertliche({})'.format(number, name.get_text().encode(
-				'ascii', 'xmlcharrefreplace').decode('ascii')))
-			return name.get_text().encode('ascii', 'xmlcharrefreplace').decode('ascii').replace(' & ', ' u. ')
+		string = str(soup.find('script', type='application/ld+json'))
+		m = re.search('\"@type\":\"Person\",\"name\":\"(.*?)\"', string)
+		if m:
+			#			name = m.group(1).encode('ascii', 'xmlcharrefreplace').decode('ascii').replace(' & ', ' u. ')
+			name = m.group(1).replace(' & ', ' u. ')
+			logger.info('{} = dasoertliche({})'.format(number, name))
+			return name
 
 
-class FritzPhonebook(object):
+class MyFritzPhonebook(object):
 
 	def __init__(self, connection, name):
 		self.connection = connection
 		if name and type(name) == list:
 			name = name[0]
-		bookNumbers = self.connection.call_action('X_AVM-DE_OnTel', 'GetPhonebookList')['NewPhonebookList'].split(",")
-		self.bookNumber = -1
-		for number in bookNumbers:
-			a = connection.call_action('X_AVM-DE_OnTel', 'GetPhonebook', NewPhonebookID=number)
-			if a['NewPhonebookName'] == name:
-				self.bookNumber = number
-				logger.debug("PhonebookNumber = {}".format(number))
+		self.bookNumber = None
+		for id in FritzPhonebook(self.connection).list_phonebooks:
+			book = FritzPhonebook(self.connection).phonebook_info(id)
+			if book['name'] == name:
+				self.bookNumber = id
 				break
-		if self.bookNumber == -1:
+		if not self.bookNumber:
 			logger.error('Phonebook: {} not found !'.format(name), True)
 			exit(1)
-		self.get_phonebook()
 
 	def get_phonebook(self):
 		self.http = urllib3.PoolManager()
 		response = self.http.request('GET', self.connection.call_action(
 			'X_AVM-DE_OnTel', 'GetPhonebook', NewPhonebookID=self.bookNumber)['NewPhonebookURL'])
-		self.phonebook = fromstring(
+		self.phonebookEntries = fromstring(
 			re.sub("!-- idx:(\d+) --", lambda m: "idx>"+m.group(1)+"</idx", response.data.decode("utf-8")))
 
 	def get_entry(self, name=None, number=None, uid=None, id=None):
-		for contact in self.phonebook.iter('contact'):
+		for contact in self.phonebookEntries.iter('contact'):
 			if name != None:
 				for realName in contact.iter('realName'):
-					if html.parser.HTMLParser().unescape(realName.text) == html.parser.HTMLParser().unescape(name):
+					if html.unescape(realName.text) == html.unescape(name):
 						for idx in contact.iter('idx'):
 							return {'contact_id': idx.text, 'contact': contact}
 			elif number != None:
@@ -209,6 +196,15 @@ class FritzPhonebook(object):
 					NewPhonebookEntryID=id)['NewPhonebookEntryData'])
 				return {'contact_id': id, 'contact': phone_entry}
 
+	def add_entry_list(self, entry_list):
+		if entry_list:
+			for number, name in entry_list.items():
+				entry = self.get_entry(name=name)
+				if entry:
+					self.append_entry(entry, number)
+				else:
+					self.add_entry(number, name)
+
 	def append_entry(self, entry, phone_number):
 		phonebookEntry = self.get_entry(id=entry['contact_id'])['contact']
 		for realName in phonebookEntry.iter('realName'):
@@ -224,34 +220,37 @@ class FritzPhonebook(object):
 		if not newnumber == None:
 			for telephony in phonebookEntry.iter('telephony'):
 				telephony.append(newnumber)
-			self.connection.call_action('X_AVM-DE_OnTel', 'SetPhonebookEntry',
-										NewPhonebookEntryData='<?xml version="1.0" encoding="utf-8"?>' +
-										tostring(phonebookEntry).decode("utf-8"),
-										NewPhonebookID=self.bookNumber, NewPhonebookEntryID=entry['contact_id'])
+			arg = {
+				'NewPhonebookID': self.bookNumber,
+				'NewPhonebookEntryID': entry['contact_id'],
+				'NewPhonebookEntryData':
+				'<Envelope encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://www.w3.org/2003/05/soap-envelope/">' +
+				tostring(phonebookEntry).decode("utf-8") +
+				'</Envelope>'
+			}
+			self.connection.call_action('X_AVM-DE_OnTel', 'SetPhonebookEntry', arguments=arg)
+			self.get_phonebook()
 
 	def add_entry(self, phone_number, name):
 		phonebookEntry = fromstring(
-			'<contact><person><realName></realName></person><telephony><number type="home" prio="1"></number></telephony></contact>')
+			'<contact><person><realName></realName></person><telephony><number></number></telephony></contact>')
 		for number in phonebookEntry.iter('number'):
 			number.text = phone_number
 			number.set('type', 'home')
 			number.set('prio', '1')
+			number.set('id', '0')
 		for realName in phonebookEntry.iter('realName'):
-			realName.text = html.parser.HTMLParser().unescape(name)
-		self.connection.call_action('X_AVM-DE_OnTel', 'SetPhonebookEntry',
-									NewPhonebookEntryData='<?xml version="1.0" encoding="utf-8"?>' +
-									tostring(phonebookEntry).decode("utf-8"),
-									NewPhonebookID=self.bookNumber, NewPhonebookEntryID='')
+			realName.text = html.unescape(name)
+		arg = {
+			'NewPhonebookID': self.bookNumber,
+			'NewPhonebookEntryID': '',
+			'NewPhonebookEntryData':
+			'<Envelope encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://www.w3.org/2003/05/soap-envelope/">' +
+			tostring(phonebookEntry).decode("utf-8") +
+			'</Envelope>'
+		}
+		self.connection.call_action('X_AVM-DE_OnTel:1', 'SetPhonebookEntry', arguments=arg)
 		self.get_phonebook()
-
-	def add_entry_list(self, entry_list):
-		if entry_list:
-			for number, name in entry_list.items():
-				entry = self.get_entry(name=name)
-				if entry:
-					self.append_entry(entry, number)
-				else:
-					self.add_entry(number, name)
 
 
 class FritzBackwardSearch(object):
@@ -272,7 +271,8 @@ class FritzBackwardSearch(object):
 			port=args.port,
 			user=args.username,
 			password=args.password)
-		self.phonebook = FritzPhonebook(self.connection, name=args.phonebook)
+		self.phonebook = MyFritzPhonebook(self.connection, name=args.phonebook)
+		self.phonebook.get_phonebook()
 		self.notfoundfile = args.notfoundfile
 		if args.notfoundfile and type(args.notfoundfile) is list:
 			self.notfoundfile = args.notfoundfile[0]
@@ -372,10 +372,9 @@ class FritzBackwardSearch(object):
 			exit(1)
 		if args.password and type(args.password) == list:
 			args.password = args.password[0].rstrip()
-		calls = FritzCalls(self.connection, notfoundfile=args.notfoundfile)
-		unknownCallers = calls.get_unknown()
-		searchnumber = []
+		calls = FritzCalls(self.connection, nameNotFoundList=self.nameNotFoundList)
 		nameList = ''
+		searchnumber = []
 		if args.searchnumber:
 			if type(args.searchnumber) == tuple:
 				searchnumber += args.searchnumber
@@ -394,17 +393,18 @@ class FritzBackwardSearch(object):
 					if number in self.nameNotFoundList:
 						logger.info('{} already in nameNotFoundList'.format(number))
 					else:
-						unknownCallers[number] = ''
+						new = Call()
+						new.Name = number
+						calls.calldict.append(new)
 				else:
 					for realName in contact['contact'].iter('realName'):
 						logger.info('{} = {}({})'.format(number, args.phonebook, realName.text))
 						nameList += realName.text.replace('& ', '&#38; ')+'\n'
 		else:
 			logger.error("Searchnumber nicht gesetzt")
+
 		nameNotFoundList_length = len(self.nameNotFoundList)
-		unknownCallers = set(unknownCallers.keys()).difference(set(self.nameNotFoundList))
-		logger.debug("Length unknownCallers = {}".format(len(unknownCallers)))
-		knownCallers = calls.get_names(unknownCallers, self.nameNotFoundList)
+		knownCallers = calls.get_names(self.nameNotFoundList)
 		if len(self.nameNotFoundList) > nameNotFoundList_length:
 			with open(self.notfoundfile, "w") as outfile:
 				outfile.write("\n".join(self.nameNotFoundList))
@@ -419,5 +419,5 @@ class FritzBackwardSearch(object):
 if __name__ == '__main__':
 	FBS = FritzBackwardSearch()
 #   to search for a number specify it in here:
-#	FBS.runSearch(s=('111', '1550'))
+#	FBS.runSearch(s=('06131177282 (06131170)', ))
 	FBS.runSearch()
