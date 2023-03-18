@@ -110,7 +110,7 @@ class FritzCalls(object):
 			numberSaved = False
 			l_onkz = FritzBackwardSearch().get_ONKz_length(fullNumber)
 			while (name == None and len(fullNumber) > (l_onkz + 3)):
-				name = self.dasoertliche(fullNumber)
+				name = self.lookup_dasoertliche(fullNumber)
 				if not name:
 					logger.info('{} not found'.format(fullNumber))
 					nameNotFoundList.append(fullNumber)
@@ -133,7 +133,7 @@ class FritzCalls(object):
 					numberSaved = True
 		return foundlist
 
-	def dasoertliche(self, number):
+	def lookup_dasoertliche(self, number):
 		url = 'https://www.dasoertliche.de/Controller?form_name=search_inv&ph={}'.format(number)
 		headers = {
 			'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.90 Safari/537.36'}
@@ -144,7 +144,11 @@ class FritzCalls(object):
 		string = str(soup.find('script', type='application/ld+json'))
 		m = re.search('\"@type\":\"Person\",\"name\":\"(.*?)\"', string)
 		if m:
-			#			name = m.group(1).encode('ascii', 'xmlcharrefreplace').decode('ascii').replace(' & ', ' u. ')
+			name = m.group(1).replace(' & ', ' u. ')
+			logger.info('{} = dasoertliche({})'.format(number, name))
+			return name
+		m = re.search('\"@type\":\"LocalBusiness\",\"name\":\"(.*?)\"', string)
+		if m:
 			name = m.group(1).replace(' & ', ' u. ')
 			logger.info('{} = dasoertliche({})'.format(number, name))
 			return name
@@ -224,9 +228,9 @@ class MyFritzPhonebook(object):
 				'NewPhonebookID': self.bookNumber,
 				'NewPhonebookEntryID': entry['contact_id'],
 				'NewPhonebookEntryData':
-				'<Envelope encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://www.w3.org/2003/05/soap-envelope/">' +
-				tostring(phonebookEntry).decode("utf-8") +
-				'</Envelope>'
+					'<Envelope encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://www.w3.org/2003/05/soap-envelope/">' +
+					tostring(phonebookEntry).decode("utf-8") +
+					'</Envelope>'
 			}
 			self.connection.call_action('X_AVM-DE_OnTel', 'SetPhonebookEntry', arguments=arg)
 			self.get_phonebook()
@@ -245,9 +249,9 @@ class MyFritzPhonebook(object):
 			'NewPhonebookID': self.bookNumber,
 			'NewPhonebookEntryID': '',
 			'NewPhonebookEntryData':
-			'<Envelope encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://www.w3.org/2003/05/soap-envelope/">' +
-			tostring(phonebookEntry).decode("utf-8") +
-			'</Envelope>'
+				'<Envelope encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://www.w3.org/2003/05/soap-envelope/">' +
+				tostring(phonebookEntry).decode("utf-8") +
+				'</Envelope>'
 		}
 		self.connection.call_action('X_AVM-DE_OnTel:1', 'SetPhonebookEntry', arguments=arg)
 		self.get_phonebook()
