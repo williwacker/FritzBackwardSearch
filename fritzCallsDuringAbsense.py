@@ -141,5 +141,5 @@ class FritzCallsDuringAbsense():
 			# listen for the data (load audio to memory)
 			audio_data = r.record(source)
 			# recognize (convert from speech to text)
-			text = r.recognize_google(audio_data, language="de_DE")
+			text = r.recognize_google(audio_data, language="de-DE")
 			return text
