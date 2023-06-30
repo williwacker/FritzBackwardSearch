@@ -69,9 +69,7 @@ class CallMonServer():
 		self.FWLAN = FritzWLANStatus(self.connection, self.prefs)
 		self.startFritzboxCallMonitor()
 
-#		self.FCDA.set_unresolved('067351648')
-#		self.FCDA.set_unresolved('067351550')
-#		self.FCDA.get_unresolved()
+#		self.FCDA.set_unresolved('015123690066')
 
 	def __init_logging__(self):
 		numeric_level = getattr(logging, self.prefs['loglevel'].upper(), None)
