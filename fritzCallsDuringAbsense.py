@@ -6,12 +6,10 @@ import logging
 import os
 import re
 import urllib
-from datetime import datetime
 
-import requests
-import urllib3
-import xmltodict
 import speech_recognition as sr
+import urllib3
+from lib.fritzcall import FritzCall
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +23,7 @@ class FritzCallsDuringAbsense():
 		self.callURLList = connection.call_action('X_AVM-DE_OnTel', 'GetCallList')
 		entries = re.search("sid=(.*)$", self.callURLList['NewCallListURL'])
 		self.sid = entries.group(0)
+		self.FC = FritzCall(fc=connection)
 		self.unresolved_list = []
 
 	def get_sid(self):
@@ -40,69 +39,41 @@ class FritzCallsDuringAbsense():
 		self.unresolved_list.append(caller)
 
 	def get_unresolved(self):
-		if self.unresolved_list:
-			logger.info(self.unresolved_list)
-			for caller in list(self.unresolved_list):
-				response = self.http.request('GET', self.callURLList['NewCallListURL'] + '&max=50')
-				if response.status != 200:
-					logger.error('response status='+str(response.status))
-				else:					
-					try:
-						calldict = xmltodict.parse(response.data)
-					except Exception as e:
-						logger.error(str(e))
-						logger.error(response.data)
-					if 'root' in calldict:
-						if 'Call' in calldict['root']:
-							self.process_notification(calldict['root']['Call'], caller)
-							self.unresolved_list.remove(caller)
-					else:
-						logger.error(calldict)
+		for caller in self.unresolved_list:
+			calls = [
+				call for call in self.FC.get_calls(update=True, days=5)
+				if call.Type == "1" and call.Port == "40" and call.Path and call.Caller in caller]
+			calls += [
+				call for call in self.FC.get_missed_calls(update=True, days=3)
+				if call.Type == "2" and call.Caller in caller]
+			calls = sorted(calls, key=lambda x: x.Date, reverse=True)
+			for call in calls:
+				self.process_notification(call)
+				break
 
-	def process_notification(self, calldict, caller):
-		for callentry in calldict:
-			logger.info(callentry)
-			if callentry['Caller'] == caller:
-				logger.info("callentry['Type']="+callentry['Type'])
-				if callentry['Type'] in ('1', '2'):  # missed incoming calls
-					logger.info("callentry['Caller']="+callentry['Caller'])
-					callentry['CalledNumber'] = self.get_fullCode(callentry['CalledNumber'])
-					callentry['Caller'] = self.get_fullCode(callentry['Caller'])
-					phone_message = self.get_phone_message(callentry)  # if callentry['Port'] in ('40') else ""
-					logger.info("phone_message="+str(phone_message))
-#                    self.telegram(self.get_message(callentry, phone_message))
-					self.pushover(self.get_message(callentry, phone_message))
-				return
+	def process_notification(self, call):
+		phone_message = self.get_phone_message(call)
+		logger.info("phone_message="+str(phone_message))
+		self.pushover(self.get_message(call, phone_message))
+		return
 
-	def get_phone_message(self, callentry):
-		# list of phone messages
+	def get_phone_message(self, call):
 		phone_message = ""
 		# if it is a phone message
-		if callentry['Path'] is not None:
+		if call.Path:
 			# build download link for phone message
-			entries = re.search("(path=)(.*)", callentry['Path'])
+			entries = re.search("(path=)(.*)", call.Path)
 			dlpath = entries.group(2)
 			dlfile = dlpath.split("/")
 			response = self.http.request(
-				'GET', '{}/lua/photo.lua?{}&myabfile={}'.format(self.prefs['fritz_ip_address'], self.get_sid(), dlpath))
+				'GET',
+				'{}/lua/photo.lua?{}&myabfile={}'.format(self.prefs['fritz_ip_address'], self.get_sid(), dlpath)
+			)
 			wave = open(os.path.join(self.prefs['phone_msg_dir'], '{}.wav'.format(dlfile[-1])), 'wb')
 			wave.write(response.data)
 			wave.close()
 			phone_message = self.speech_to_text(wave.name)
 		return phone_message
-
-#    def telegram(self, message):
-#        self.http.headers = {'Content-type': 'application/json'}
-#        try:
-#            self.http.request('GET', 'https://api.telegram.org/bot{}/sendMessage?chat_id={}\&text={}'.format(
-#                self.prefs['telegram_token'], self.prefs['telegram_chat_id'], message), timeout=4.0, retries=False)
-#        except Exception as e:
-#           logger.error(e)
-
-	def telegram(self, bot_message):
-		url = f"https://api.telegram.org/bot{self.prefs['telegram_token']}/sendMessage"
-		parms = {'chat_id': self.prefs['telegram_chat_id'], 'text': bot_message}
-		requests.get(url, parms, timeout=4)
 
 	def pushover(self, message):
 		if self.prefs['pushover_token'] and self.prefs['pushover_userkey']:
@@ -115,24 +86,15 @@ class FritzCallsDuringAbsense():
 						 }), {"Content-type": "application/x-www-form-urlencoded"})
 			conn.getresponse()
 
-	def get_message(self, callentry, phone_message):
-		if callentry['Caller'] is None:
-			callentry['Caller'] = ""
-		if callentry['Name'] is None:
-			callentry['Name'] = ""
-		calltime = datetime.strptime(callentry['Date'], '%d.%m.%y %H:%M').strftime("%d.%m.%Y %H:%M")
+	def get_message(self, call, phone_message):
+		text = '{} {} {}'.format(
+			call.Date,
+			call.Name,
+			call.Caller,
+		)
 		if phone_message:
-			text = '{0} {1} {2} /Message: {3}'.format(
-				calltime,
-				callentry['Name'].encode('utf-8').decode('utf-8'),
-				callentry['Caller'],
-				phone_message
-			)
-		else:
-			text = '{} {} {}'.format(
-				calltime,
-				callentry['Name'].encode('utf-8').decode('utf-8'),
-				callentry['Caller']
+			text += ' /Message: {}'.format(
+				phone_message,
 			)
 		return text
 
