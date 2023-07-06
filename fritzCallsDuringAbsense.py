@@ -49,6 +49,7 @@ class FritzCallsDuringAbsense():
 			calls = sorted(calls, key=lambda x: x.Date, reverse=True)
 			for call in calls:
 				self.process_notification(call)
+				self.unresolved_list.remove(call.Caller)
 				break
 
 	def process_notification(self, call):
@@ -87,10 +88,11 @@ class FritzCallsDuringAbsense():
 			conn.getresponse()
 
 	def get_message(self, call, phone_message):
-		text = '{} {} {}'.format(
+		text = '{} {} {} {}'.format(
 			call.Date,
 			call.Name,
 			call.Caller,
+			call.CalledNumber,
 		)
 		if phone_message:
 			text += ' /Message: {}'.format(

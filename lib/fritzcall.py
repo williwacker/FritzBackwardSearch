@@ -10,15 +10,10 @@ missed ones.
 
 import datetime
 
-from fritzconnection.core.processor import (
-    processor,
-    process_node,
-    InstanceAttributeFactory,
-    Storage,
-)
+from fritzconnection.core.processor import (InstanceAttributeFactory, Storage,
+                                            process_node, processor)
 from fritzconnection.core.utils import get_xml_root
 from fritzconnection.lib.fritzbase import AbstractLibraryBase
-
 
 __all__ = ['FritzCall', 'Call']
 
@@ -57,6 +52,7 @@ class FritzCall(AbstractLibraryBase):
     password, `timeout` a timeout as floating point number in seconds,
     `use_tls` a boolean indicating to use TLS (default False).
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.calls = None
@@ -72,7 +68,7 @@ class FritzCall(AbstractLibraryBase):
         self.calls = CallCollection(root)
 
     def get_calls(self, calltype=ALL_CALL_TYPES, update=True,
-                        num=None, days=None):
+                  num=None, days=None):
         """
         Return a list of Call instances of type calltypes. If calltype
         is 0 all calls are listed. If *update* is True, all calls are
@@ -134,6 +130,7 @@ class AttributeConverter:
     """
     Data descriptor returning converted attribute values.
     """
+
     def __init__(self, attribute_name, converter=str):
         self.attribute_name = attribute_name
         self.converter = converter
@@ -179,7 +176,7 @@ class Call:
         self.Port = None
         self.Date = None
         self.Duration = None
-       	self.Count = None
+        self.Count = None
         self.Path = None
 
     def __str__(self):
