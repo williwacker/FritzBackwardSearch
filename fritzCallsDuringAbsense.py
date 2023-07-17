@@ -92,7 +92,7 @@ class FritzCallsDuringAbsense():
 			call.Date,
 			call.Name,
 			call.Caller,
-			call.CalledNumber,
+			call.Called,
 		)
 		if phone_message:
 			text += ' /Message: {}'.format(
