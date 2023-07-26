@@ -62,18 +62,21 @@ class FritzCallsDuringAbsense():
 		phone_message = ""
 		# if it is a phone message
 		if call.Path:
-			# build download link for phone message
-			entries = re.search("(path=)(.*)", call.Path)
-			dlpath = entries.group(2)
-			dlfile = dlpath.split("/")
-			response = self.http.request(
-				'GET',
-				'{}/lua/photo.lua?{}&myabfile={}'.format(self.prefs['fritz_ip_address'], self.get_sid(), dlpath)
-			)
-			wave = open(os.path.join(self.prefs['phone_msg_dir'], '{}.wav'.format(dlfile[-1])), 'wb')
-			wave.write(response.data)
-			wave.close()
-			phone_message = self.speech_to_text(wave.name)
+			try:
+				# build download link for phone message
+				entries = re.search("(path=)(.*)", call.Path)
+				dlpath = entries.group(2)
+				dlfile = dlpath.split("/")
+				response = self.http.request(
+					'GET',
+					'{}/lua/photo.lua?{}&myabfile={}'.format(self.prefs['fritz_ip_address'], self.get_sid(), dlpath)
+				)
+				wave = open(os.path.join(self.prefs['phone_msg_dir'], '{}.wav'.format(dlfile[-1])), 'wb')
+				wave.write(response.data)
+				wave.close()
+				phone_message = self.speech_to_text(wave.name)
+			except Exception as e:
+				self.pushover('Error in get_phone_message ' + str(e))
 		return phone_message
 
 	def pushover(self, message):
