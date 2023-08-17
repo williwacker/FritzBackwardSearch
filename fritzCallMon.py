@@ -69,7 +69,7 @@ class CallMonServer():
 		self.FWLAN = FritzWLANStatus(self.connection, self.prefs)
 		self.startFritzboxCallMonitor()
 
-#        self.FCDA.set_unresolved('067351550')
+#		self.FCDA.set_unresolved('000000000')
 
 	def __init_logging__(self):
 		numeric_level = getattr(logging, self.prefs['loglevel'].upper(), None)
@@ -196,8 +196,10 @@ class CallMonServer():
 				if type == "RING":
 					call_history[id] = caller_or_port
 					logger.info(call_history)
-# elif type == "CONNECT":
-# logger.info(call_history)
+				elif type == "CONNECT":
+					logger.info(call_history)
+					if id in call_history:
+						del call_history[id]
 				elif type == "DISCONNECT":
 					logger.info(call_history)
 					if id in call_history:
