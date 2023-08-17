@@ -40,9 +40,12 @@ class FritzCallsDuringAbsense():
 
 	def get_unresolved(self):
 		for caller in self.unresolved_list:
+#			calls = [
+#				call for call in self.FC.get_calls(update=True, days=5)
+#				if call.Type == "1" and call.Port == "40" and call.Path and call.Caller in caller]			
 			calls = [
 				call for call in self.FC.get_calls(update=True, days=5)
-				if call.Type == "1" and call.Port == "40" and call.Path and call.Caller in caller]
+				if call.Type == "1" and call.Port == "40" and call.Caller in caller]
 			calls += [
 				call for call in self.FC.get_missed_calls(update=True, days=3)
 				if call.Type == "2" and call.Caller in caller]
