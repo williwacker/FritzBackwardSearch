@@ -9,3 +9,4 @@ build/
 help.txt
 .vscode/*
 test_phonebook.py
+fritzCallMon.log.*

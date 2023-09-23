@@ -9,6 +9,7 @@ import socket
 import sys
 import threading
 import time
+from logging.handlers import TimedRotatingFileHandler
 from queue import Queue
 
 from fritzconnection import FritzConnection
@@ -69,18 +70,25 @@ class CallMonServer():
 		self.FWLAN = FritzWLANStatus(self.connection, self.prefs)
 		self.startFritzboxCallMonitor()
 
-#		self.FCDA.set_unresolved('000000000')
+# self.FCDA.set_unresolved('000000000')
 
 	def __init_logging__(self):
 		numeric_level = getattr(logging, self.prefs['loglevel'].upper(), None)
 		if not isinstance(numeric_level, int):
 			raise ValueError('Invalid log level: %s' % self.prefs['loglevel'])
-		logging.basicConfig(
-			filename=self.prefs['logfile'],
-			level=numeric_level,
-			format=('%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(message)s'),
-			datefmt='%Y-%m-%d %H:%M:%S',
+		logger.setLevel(numeric_level)
+		handler = TimedRotatingFileHandler(
+			self.prefs['logfile'],
+			when='midnight',
+			backupCount=7
 		)
+		formatter = logging.Formatter(
+			fmt='%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(message)s',
+			datefmt='%Y-%m-%d %H:%M:%S'
+		)
+		handler.setFormatter(formatter)
+#		handler.doRollover()
+		logger.addHandler(handler)
 
 	def __read_configuration__(self, filename):  # read configuration from the configuration file and prepare a preferences dict
 		cfg = configparser.ConfigParser()
