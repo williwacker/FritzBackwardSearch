@@ -57,7 +57,7 @@ class FritzCallsDuringAbsense():
 
 	def process_notification(self, call):
 		phone_message = self.get_phone_message(call)
-		logger.info("phone_message="+str(phone_message))
+		logger.info("phone_message=%s", phone_message)
 		self.pushover(self.get_message(call, phone_message))
 		return
 
@@ -72,26 +72,35 @@ class FritzCallsDuringAbsense():
 				dlfile = dlpath.split("/")
 				response = self.http.request(
 					'GET',
-					'{}/lua/photo.lua?{}&myabfile={}'.format(self.prefs['fritz_ip_address'], self.get_sid(), dlpath)
+					f'{self.prefs["fritz_ip_address"]}/lua/photo.lua?{self.get_sid()}&myabfile={dlpath}'
 				)
-				wave = open(os.path.join(self.prefs['phone_msg_dir'], '{}.wav'.format(dlfile[-1])), 'wb')
+				wave = open(os.path.join(self.prefs['phone_msg_dir'], f'{dlfile[-1]}.wav'), 'wb')
 				wave.write(response.data)
 				wave.close()
 				phone_message = self.speech_to_text(wave.name)
 			except Exception as e:
-				self.pushover('Error in get_phone_message ' + str(e))
+				logger.error('Error in get_phone_message %s', e)
+				self.pushover(f'Error in get_phone_message {e}')
 		return phone_message
 
 	def pushover(self, message):
 		if self.prefs['pushover_token'] and self.prefs['pushover_userkey']:
-			conn = http.client.HTTPSConnection("api.pushover.net:443")
-			conn.request("POST", "/1/messages.json",
-						 urllib.parse.urlencode({
-							 "token": self.prefs['pushover_token'],
-							 "user": self.prefs['pushover_userkey'],
-							 "message": message,
-						 }), {"Content-type": "application/x-www-form-urlencoded"})
-			conn.getresponse()
+			retry_count = 5
+			retry = True
+			while retry and retry_count > 0:
+				try:
+					conn = http.client.HTTPSConnection("api.pushover.net:443")
+					conn.request("POST", "/1/messages.json",
+								urllib.parse.urlencode({
+									"token": self.prefs['pushover_token'],
+									"user": self.prefs['pushover_userkey'],
+									"message": message,
+								}), {"Content-type": "application/x-www-form-urlencoded"})
+					conn.getresponse()
+					retry = False
+				except Exception:
+					retry_count -= 1
+					logger.error("Pushover Error.", exc_info=True)
 
 	def get_message(self, call, phone_message):
 		text = '{} {} {} {}'.format(
@@ -107,12 +116,22 @@ class FritzCallsDuringAbsense():
 		return text
 
 	def speech_to_text(self, filename):
-		# initialize the recognizer
-		r = sr.Recognizer()
-		# open the file
-		with sr.AudioFile(filename) as source:
-			# listen for the data (load audio to memory)
-			audio_data = r.record(source)
-			# recognize (convert from speech to text)
-			text = r.recognize_google(audio_data, language="de-DE")
-			return text
+		retry_count = 5
+		retry = True
+		while retry and retry_count > 0:
+			try:
+				# initialize the recognizer
+				r = sr.Recognizer()
+				# open the file
+				with sr.AudioFile(filename) as source:
+					# listen for the data (load audio to memory)
+					audio_data = r.record(source)
+					# recognize (convert from speech to text)
+					text = r.recognize_google(audio_data, language="de-DE")
+					return text
+				retry = False
+			except Exception as e:
+				retry_count -= 1
+				logger.error('Error in speech_to_text %s', e)
+				self.pushover(f'Error in speech_to_text {e}')
+

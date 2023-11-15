@@ -46,11 +46,12 @@ logger = logging.getLogger(__name__)
 class CallMonServer():
 
 	def __init__(self):
-		fname = os.path.join(os.path.dirname(__file__), 'fritzBackwardSearch.ini')
+		fname = os.path.join(os.path.dirname(__file__),
+							 'fritzBackwardSearch.ini')
 		if os.path.isfile(fname):
 			self.prefs = self.__read_configuration__(fname)
 		else:
-			logger.error('{} not found'.format(fname))
+			logger.error('%s not found', fname)
 			exit(1)
 		self.__init_logging__()
 		# initialize FB connection
@@ -62,7 +63,8 @@ class CallMonServer():
 			port=self.prefs['fritz_tcp_port'],
 			user=self.prefs['fritz_username'],
 			password=self.prefs['password'])
-		self.fb_queue = Queue()  # Meldungs-Übergabe von runFritzboxCallMonitor() an runFritzBackwardSearch()
+		# Meldungs-Übergabe von runFritzboxCallMonitor() an runFritzBackwardSearch()
+		self.fb_queue = Queue()
 		self.fb_absense_queue = Queue()
 
 		self.FBS = FritzBackwardSearch()
@@ -75,7 +77,7 @@ class CallMonServer():
 	def __init_logging__(self):
 		numeric_level = getattr(logging, self.prefs['loglevel'].upper(), None)
 		if not isinstance(numeric_level, int):
-			raise ValueError('Invalid log level: %s' % self.prefs['loglevel'])
+			raise ValueError(f"Invalid log level: {self.prefs['loglevel']}")
 		logger.setLevel(numeric_level)
 		handler = TimedRotatingFileHandler(
 			self.prefs['logfile'],
@@ -87,16 +89,18 @@ class CallMonServer():
 			datefmt='%Y-%m-%d %H:%M:%S'
 		)
 		handler.setFormatter(formatter)
-#		handler.doRollover()
+# handler.doRollover()
 		logger.addHandler(handler)
 
-	def __read_configuration__(self, filename):  # read configuration from the configuration file and prepare a preferences dict
+	# read configuration from the configuration file and prepare a preferences dict
+	def __read_configuration__(self, filename):
 		cfg = configparser.ConfigParser()
 		cfg.read(filename)
 		preferences = {}
 		for name, value in cfg.items('DEFAULT'):
 			if name == 'status_to_terminal':
-				preferences[name] = cfg.getboolean('DEFAULT', 'status_to_terminal')
+				preferences[name] = cfg.getboolean(
+					'DEFAULT', 'status_to_terminal')
 			else:
 				preferences[name] = value
 		return preferences
@@ -107,15 +111,18 @@ class CallMonServer():
 	#   startet zwei Threads
 	# ###########################################################
 	def startFritzboxCallMonitor(self):
-		worker1 = threading.Thread(target=self.runFritzboxCallMonitor, name="runFritzboxCallMonitor")
+		worker1 = threading.Thread(
+			target=self.runFritzboxCallMonitor, name="runFritzboxCallMonitor")
 		worker1.setDaemon(True)
 		worker1.start()
 
-		worker2 = threading.Thread(target=self.runFritzBackwardSearch, name="runFritzBackwardSearch")
+		worker2 = threading.Thread(
+			target=self.runFritzBackwardSearch, name="runFritzBackwardSearch")
 		worker2.setDaemon(True)
 		worker2.start()
 
-		worker3 = threading.Thread(target=self.runFritzCallsDuringAbsense, name="runFritzCallsDuringAbsense")
+		worker3 = threading.Thread(
+			target=self.runFritzCallsDuringAbsense, name="runFritzCallsDuringAbsense")
 		worker3.setDaemon(True)
 		worker3.start()
 
@@ -123,7 +130,8 @@ class CallMonServer():
 # worker4.setDaemon(True)
 # worker4.start()
 
-		worker5 = threading.Thread(target=self.runFritzWLANStatus, name="runFritzWLANStatus")
+		worker5 = threading.Thread(
+			target=self.runFritzWLANStatus, name="runFritzWLANStatus")
 		worker5.setDaemon(True)
 		worker5.start()
 
@@ -135,27 +143,29 @@ class CallMonServer():
 		while True:  # Socket-Connect-Loop
 			self.recSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			try:
-				self.recSock.connect((self.prefs['fritz_ip_address'], int(self.prefs['fritz_callmon_port'])))
+				self.recSock.connect(
+					(self.prefs['fritz_ip_address'], int(self.prefs['fritz_callmon_port'])))
 			except socket.herror as e:
-				logger.error("%s %s" % ("socket.herror", str(e)))
+				logger.error("socket.herror %s", e)
 				time.sleep(10)
 				continue
 			except socket.gaierror as e:
-				logger.error("%s %s" % ("socket.gaierror", str(e)))
+				logger.error("socket.gaierror %s", e)
 				time.sleep(10)
 				continue
 			except socket.timeout as e:
-				logger.error("%s %s" % ("socket.timeout", str(e)))
+				logger.error("socket.timeout %s", e)
 				continue
 			except socket.error as e:
-				logger.error("%s %s" % ("socket.error", str(e)))
+				logger.error("socket.error %s", e)
 				time.sleep(10)
 				continue
 			except Exception as e:
-				logger.error(str(e))
+				logger.error("%s", e)
 				time.sleep(10)
 				continue
-			logger.info("The connection to the Fritzbox call monitor has been established!")
+			logger.info(
+				"The connection to the Fritzbox call monitor has been established!")
 
 			while True:  # Socket-Receive-Loop
 				try:
@@ -167,7 +177,8 @@ class CallMonServer():
 					self.fb_queue.put(ln)
 					self.fb_absense_queue.put(ln)
 				else:
-					logger.info("The connection to the Fritzbox call monitor has been stopped!")
+					logger.info(
+						"The connection to the Fritzbox call monitor has been stopped!")
 					self.fb_queue.put("CONNECTION_LOST")
 					break   # back to the Socket-Connect-Loop
 
@@ -211,7 +222,7 @@ class CallMonServer():
 				elif type == "DISCONNECT":
 					logger.info(call_history)
 					if id in call_history:
-						logger.info('calling FCDA '+call_history[id])
+						logger.info('calling FCDA %s', call_history[id])
 						self.FCDA.set_unresolved(call_history[id])
 						del call_history[id]
 
@@ -243,14 +254,15 @@ class CallMonServer():
 			self.srvSock.bind(("", int(self.prefs['callmon_server_socket'])))
 			self.srvSock.listen(5)
 		except Exception as e:
-			logger.error("Cannot open socket {} : {}".format(self.prefs['callmon_server_socket'], e))
+			logger.error("Cannot open socket %s : %s",
+						 self.prefs['callmon_server_socket'], e)
 			return
 
 		while True:
 			try:
 				self.srvSock.listen(5)
 				time.sleep(0.01)
-			except:
+			except Exception:
 				logger.info('fritzCallMon has been stopped')
 				sys.exit()
 
